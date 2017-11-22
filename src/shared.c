@@ -1,40 +1,106 @@
 // Libc includes
 #include <err.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <arpa/inet.h> // for htons
+#include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <net/if.h>
 
 #include "rilproxy.h"
 
 int
-open_interface (const char *ifname)
+udp_client_socket (const char *host, unsigned short port)
 {
-    int sockopt = 1;
-    int rv = -1;
+    struct sockaddr_in addr;
+    int fd, rv;
 
-    // Open socket
-    int fd = socket (PF_PACKET, SOCK_RAW, htons (RILPROXY_ETHER_TYPE));
-    if (fd < 0)
-    {
-        warn ("Opening raw socket");
-        return -1;
-    }
+    fprintf (stderr, "Opening %s:%d\n", host, port);
 
-    // Make socket reusable
-    rv = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt));
-    if (rv < 0)
-    {
-        warn ("setsockopt(SO_REUSEADDR)");
-        return -1;
-    }
+    fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (fd < 0) err (2, "socket");
 
-    // Bind to device
-    rv = setsockopt (fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ - 1);
-    if (rv < 0)
-    {
-        warn ("setsockopt(SO_BINDTODEVICE)");
-        return -1;
-    }
+    memset (&addr, 0, sizeof (addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(port);
+    addr.sin_addr.s_addr = inet_addr(host);
+
+    rv = connect (fd, (struct sockaddr *)&addr, sizeof(addr));
+    if (rv < 0) err (2, "connect");
 
     return fd;
+}
+
+int
+udp_server_socket (unsigned short port)
+{
+    struct sockaddr_in addr;
+	int fd, rv;
+
+	fd = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (fd < 0) err (1, "socket");
+	
+	memset (&addr, 0, sizeof (addr));
+	
+	addr.sin_family      = AF_INET;
+	addr.sin_port        = htons(port);
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	
+	rv = bind (fd, (struct sockaddr*)&addr, sizeof(addr));
+	if (rv < 0) err (2, "bind");
+
+	return fd;
+}
+
+int
+unix_client_socket (const char *socket_path)
+{
+    int rv = -1;
+    int fd = -1;
+    struct sockaddr_un addr;
+
+    fd = socket (AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) err (1, "socket");
+
+    addr.sun_family = AF_UNIX;
+    strncpy (addr.sun_path, socket_path, sizeof (addr.sun_path));
+
+    rv = connect (fd, (struct sockaddr *)&addr, sizeof (struct sockaddr_un));
+    if (rv < 0)
+    {
+        close (fd);
+        err (2, "connect");
+    }
+
+    fprintf (stderr, "Connected to %s\n", socket_path);
+    return fd;
+}
+
+int
+unix_server_socket (const char *socket_path)
+{
+    int rv = -1;
+    int fd = -1;
+    int msgfd = -1;
+    struct sockaddr_un addr;
+
+    fd = socket (AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) err (1, "socket");
+
+    addr.sun_family = AF_UNIX;
+    strncpy (addr.sun_path, socket_path, sizeof (addr.sun_path));
+
+    rv = bind (fd, (struct sockaddr *)&addr, sizeof (struct sockaddr_un));
+    if (rv < 0) err (2, "bind");
+
+    listen (fd, 1);
+    msgfd = accept (fd, NULL, NULL);
+    if (msgfd < 0) err (2, "accept");
+
+    close (fd);
+    unlink (socket_path);
+    return (msgfd);
 }
