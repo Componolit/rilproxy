@@ -2,43 +2,28 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <arpa/inet.h> // for htons
-#include <sys/socket.h>
-#include <net/if.h>
+#include <unistd.h>
 
-#define RILPROXY_ETHER_TYPE 0x1234  // FIXME
-#define RILPROXY_INTERFACE "rndis0"
+// Linux includes
+#include <linux/if_ether.h>
+
+// local includes
+#include "rilproxy.h"
 
 int
 main (void)
 {
-    int rv = -1;
-    int sockopt = 1;
-    char ifname[IFNAMSIZ];
+    int fd;
+    size_t message_len;
+    char message[ETH_DATA_LEN];
 
-    strncpy (ifname, RILPROXY_INTERFACE, sizeof (RILPROXY_INTERFACE));
-
-    // Open socket
-    int fd = socket (PF_PACKET, SOCK_RAW, htons (RILPROXY_ETHER_TYPE));
+    fd = open_interface (RILPROXY_INTERFACE);
     if (fd < 0)
     {
-        err(1, "Opening raw socket");
+        errx (254, "Opening interface");
     }
 
-    // Make socket reuasable
-    rv = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt));
-    if (rv < 0)
-    {
-        err(2, "setsockopt(SO_REUSEADDR)");
-    }
-
-    // Bind to device
-    rv = setsockopt (fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ - 1);
-    if (rv < 0)
-    {
-        err(3, "setsockopt(SO_BINDTODEVICE)");
-    }
-
-    printf ("Server\n");
+    message_len = read (fd, &message, sizeof (message));
+    printf ("Server received message of len %zd\n", message_len);
     return 0;
 }
