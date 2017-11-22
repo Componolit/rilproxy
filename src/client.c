@@ -3,6 +3,6 @@
 int
 main (void)
 {
-    printf ("Main\n");
+    printf ("Client\n");
     return 0;
 }
