@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <net/if.h>
 
@@ -103,7 +104,7 @@ unix_client_socket (const char *socket_path)
 }
 
 int
-unix_server_socket (const char *socket_path)
+unix_server_socket (const char *socket_path, const char *user)
 {
     int rv = -1;
     int fd = -1;
@@ -119,12 +120,26 @@ unix_server_socket (const char *socket_path)
     rv = bind (fd, (struct sockaddr *)&addr, sizeof (struct sockaddr_un));
     if (rv < 0) err (2, "unix_server_socket.bind to %s", socket_path);
 
-    listen (fd, 1);
-    msgfd = accept (fd, NULL, NULL);
-    if (msgfd < 0) err (2, "unix_server_socket.accept to %s", socket_path);
+    // Change user
+    rv = chown (socket_path, get_uid (user), -1);
+    if (rv < 0) err (3, "unix_server_socket.chown of %s", socket_path);
 
-    close (fd);
-    unlink (socket_path);
+    // Change mode
+    rv = chmod (socket_path, 0666);
+    if (rv < 0) err (4, "unix_server_socket.chmod of %s", socket_path);
+
+    rv = listen (fd, 1);
+    if (rv < 0) err (5, "unix_server_socket.listen for %s", socket_path);
+
+    msgfd = accept (fd, NULL, NULL);
+    if (msgfd < 0) err (5, "unix_server_socket.accept to %s", socket_path);
+
+    rv = close (fd);
+    if (rv < 0) err (6, "unix_server_socket.close for %s", socket_path);
+
+    rv = unlink (socket_path);
+    if (rv < 0) err (7, "unix_server_socket.unlink for %s", socket_path);
+
     return (msgfd);
 }
 
@@ -167,7 +182,6 @@ socket_copy (int source_fd, int dest_fd)
 {
     ssize_t bytes_written = -1;
     ssize_t bytes_read = -1;
-    size_t offset = -1;
     char buffer[1500];
 
     bytes_read = read (source_fd, &buffer, sizeof (buffer));
@@ -183,19 +197,22 @@ socket_copy (int source_fd, int dest_fd)
         return -SOCKET_COPY_READ_CLOSED;
     }
 
-    offset = 0;
-    while (offset < sizeof(buffer) && offset < (size_t)(bytes_read))
-    {
-        bytes_written = write (dest_fd, &buffer + offset, sizeof (buffer));
-        if (bytes_written < 0)
-        {
-            warn ("socket_copy: error writing target socket");
-            return -SOCKET_COPY_WRITE_ERROR;
-        }
+    warnx ("read %zd bytes", bytes_read);
 
-        offset += bytes_written;
+    bytes_written = write (dest_fd, &buffer, bytes_read);
+    if (bytes_written < 0)
+    {
+        warn ("socket_copy: error writing destination socket");
+        return -SOCKET_COPY_WRITE_ERROR;
     }
 
+    if (bytes_written < bytes_read)
+    {
+        warn ("socket_copy: read %zd bytes, wrote %zd bytes", bytes_read, bytes_written);
+        return 0;
+    }
+
+    warnx ("wrote %zd bytes", bytes_written);
     return 0;
 }
 
@@ -214,7 +231,7 @@ proxy (int local_fd, int remote_fd)
         rv = select (MAX(local_fd, remote_fd) + 1, &fds, NULL, NULL, NULL);
         if (rv < 0)
         {
-            warn ("select");
+            warn ("select failed");
             continue;
         }
 
@@ -227,7 +244,7 @@ proxy (int local_fd, int remote_fd)
         if (FD_ISSET (remote_fd, &fds))
         {
             printf ("Server: remote -> local\n");
-            rv = socket_copy (remote_fd, local_fd);
+            socket_copy (remote_fd, local_fd);
         }
     }
 }

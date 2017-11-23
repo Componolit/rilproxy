@@ -31,7 +31,7 @@ main (int argc, char **argv)
     printf ("Server: UDP socket created.\n");
 
     // Create RILd socket
-    local = unix_server_socket (local_path);
+    local = unix_server_socket (local_path, "radio");
     if (local < 0) errx (253, "Opening local socket");
     printf ("Server: Unix domain socket created.\n");
 
