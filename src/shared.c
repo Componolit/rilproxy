@@ -13,6 +13,24 @@
 
 #include "rilproxy.h"
 
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
+int
+socket_make_reusable (int fd)
+{
+    int rv = -1;
+    int enable = 1;
+
+    rv = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+    if (rv < 0)
+    {
+        warn ("setsockopt(SO_REUSEADDR)");
+        return -1;
+    }
+
+    return 0;
+}
+
 int
 udp_client_socket (const char *host, unsigned short port)
 {
@@ -44,6 +62,9 @@ udp_server_socket (unsigned short port)
 
 	fd = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd < 0) err (1, "socket");
+
+    rv = socket_make_reusable (fd);
+    if (rv < 0) err (2, "socket_make_reusable");
 	
 	memset (&addr, 0, sizeof (addr));
 	
@@ -52,7 +73,7 @@ udp_server_socket (unsigned short port)
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	
 	rv = bind (fd, (struct sockaddr*)&addr, sizeof(addr));
-	if (rv < 0) err (2, "bind");
+	if (rv < 0) err (2, "udp_server_socket.bind to %d", port);
 
 	return fd;
 }
@@ -74,7 +95,7 @@ unix_client_socket (const char *socket_path)
     if (rv < 0)
     {
         close (fd);
-        err (2, "connect");
+        err (2, "unix_client_socket.connect to %s", socket_path);
     }
 
     fprintf (stderr, "Connected to %s\n", socket_path);
@@ -96,11 +117,11 @@ unix_server_socket (const char *socket_path)
     strncpy (addr.sun_path, socket_path, sizeof (addr.sun_path));
 
     rv = bind (fd, (struct sockaddr *)&addr, sizeof (struct sockaddr_un));
-    if (rv < 0) err (2, "bind");
+    if (rv < 0) err (2, "unix_server_socket.bind to %s", socket_path);
 
     listen (fd, 1);
     msgfd = accept (fd, NULL, NULL);
-    if (msgfd < 0) err (2, "accept");
+    if (msgfd < 0) err (2, "unix_server_socket.accept to %s", socket_path);
 
     close (fd);
     unlink (socket_path);
@@ -115,7 +136,7 @@ get_uid (const char *username)
     radio_user = getpwnam (username);
     if (radio_user == NULL)
     {
-        warn ("getpwnam(radio)");
+        warn ("getpwnam(%s)", username);
         return -1;
     }
 
@@ -123,7 +144,7 @@ get_uid (const char *username)
 }
 
 int
-send_control_message (int fd, int message_type)
+send_control_message (int fd, uint32_t message_type)
 {
     int rv = -1;
     message_t message;
@@ -134,8 +155,45 @@ send_control_message (int fd, int message_type)
     rv = write (fd, &message, sizeof (message));
     if (rv < 0)
     {
-        warn ("write");
+        warn ("send_control_message.write message %u", message_type);
         return -1;
+    }
+
+    return 0;
+}
+
+int
+socket_copy (int source_fd, int dest_fd)
+{
+    ssize_t bytes_written = -1;
+    ssize_t bytes_read = -1;
+    size_t offset = -1;
+    char buffer[1500];
+
+    bytes_read = read (source_fd, &buffer, sizeof (buffer));
+    if (bytes_read < 0)
+    {
+        warn ("socket_copy: error reading source socket");
+        return -SOCKET_COPY_READ_ERROR;
+    }
+
+    if (bytes_read == 0)
+    {
+        warn ("socket_copy: reading socket closed");
+        return -SOCKET_COPY_READ_CLOSED;
+    }
+
+    offset = 0;
+    while (offset < sizeof(buffer) && offset < (size_t)(bytes_read))
+    {
+        bytes_written = write (dest_fd, &buffer + offset, sizeof (buffer));
+        if (bytes_written < 0)
+        {
+            warn ("socket_copy: error writing target socket");
+            return -SOCKET_COPY_WRITE_ERROR;
+        }
+
+        offset += bytes_written;
     }
 
     return 0;
@@ -153,23 +211,48 @@ proxy (int local_fd, int remote_fd)
         FD_SET (local_fd, &fds);
         FD_SET (remote_fd, &fds);
 
-        rv = select (2, &fds, NULL, NULL, NULL);
+        rv = select (MAX(local_fd, remote_fd) + 1, &fds, NULL, NULL, NULL);
         if (rv < 0)
         {
             warn ("select");
             continue;
         }
 
-        printf ("Select returned\n");
-
         if (FD_ISSET (local_fd, &fds))
         {
-            printf ("Would proxy local -> remote\n");
+            printf ("Server: local -> remote\n");
+            socket_copy (local_fd, remote_fd);
         }
 
         if (FD_ISSET (remote_fd, &fds))
         {
-            printf ("Would proxy remote -> local\n");
+            printf ("Server: remote -> local\n");
+            rv = socket_copy (remote_fd, local_fd);
         }
+    }
+}
+
+void
+wait_control_message (int fd, uint32_t message_type)
+{
+    ssize_t msize;
+    char buffer[1500];
+    message_t *message;
+
+    for (;;)
+    {
+        msize = read (fd, &buffer, sizeof (buffer));
+        if (msize < 0)
+        {
+            err (1, "read");
+        }
+
+        message = (message_t *)&buffer;
+        if (message->length == 4 && message->id == message_type)
+        {
+            return;
+        }
+
+        printf ("Got unknown message (len=%d, id=%x)\n", message->length, message->id);
     }
 }

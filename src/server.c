@@ -28,16 +28,18 @@ main (int argc, char **argv)
     // Open UDP socket to client proxy
     remote = udp_client_socket (remote_server, remote_port);
     if (remote < 0) errx (254, "Opening remote socket");
+    printf ("Server: UDP socket created.\n");
 
     // Create RILd socket
     local = unix_server_socket (local_path);
     if (local < 0) errx (253, "Opening local socket");
+    printf ("Server: Unix domain socket created.\n");
 
     // Connected, send startup message
     rv = send_control_message (remote, MESSAGE_SETUP_ID);
     if (rv < 0) errx (253, "Sending control message");
-
     printf ("Server: Sent startup message.\n");
+
     proxy (local, remote);
     return 0;
 }

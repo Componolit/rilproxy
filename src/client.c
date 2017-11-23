@@ -2,6 +2,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 // Linux includes
 #include <linux/if_ether.h>
@@ -10,36 +11,42 @@
 #include "rilproxy.h"
 
 int
-main (void)
+main (int argc, char **argv)
 {
-    int fd;
-    char buffer[1500];
-    ssize_t msize;
-    message_t *message;
+    int rv = -1;
+    int remote = -1;
+    int local = -1;
+    char *local_path;
+    unsigned short local_port;
 
-    printf ("Radio user UID=%d\n", get_uid("radio"));
+    if (argc < 3) errx (1, "Insufficient arguments (%s <local_socket_path> <listening port>)", argv[0]);
 
-    fd = udp_server_socket (RILPROXY_PORT);
-    if (fd < 0)
+    local_path = argv[1];
+    local_port = atoi(argv[2]);
+
+    // Open listening UDP socket
+    remote = udp_server_socket (local_port);
+    if (remote < 0) errx (254, "Opening interface");
+
+    // Wait for setup message
+    wait_control_message (remote, MESSAGE_SETUP_ID);
+
+    // Drop privileges to 'radio'
+    rv = setuid (get_uid ("radio"));
+    if (rv < 0)
     {
-        errx (254, "Opening interface");
+        send_control_message (remote, MESSAGE_TEARDOWN_ID);
+        err (253, "Dropping user to 'radio'");
     }
 
-    msize = read (fd, &buffer, sizeof (buffer));
-    if (msize < 0)
+    // Open unix domain socket
+    local = unix_server_socket (local_path);
+    if (local < 0)
     {
-        err (1, "read");
+        send_control_message (remote, MESSAGE_TEARDOWN_ID);
+        errx (252, "Opening local unix domain socket");
     }
 
-    message = (message_t *)&buffer;
-    if (message->length == 4 && message->id == MESSAGE_SETUP_ID)
-    {
-        printf ("Got startup message");
-    } else
-    {
-        printf ("Got unknow message (len=%d, id=%x)", message->length, message->id);
-    }
-
-    printf ("Client\n");
+    proxy (local, remote);
     return 0;
 }
