@@ -9,6 +9,7 @@ int unix_client_socket (const char *socket_path);
 int unix_server_socket (const char *socket_path);
 int get_uid (const char *username);
 int send_control_message (int fd, int message_type);
+void proxy (int local_fd, int remote_fd);
 
 typedef struct
 {

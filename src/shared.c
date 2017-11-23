@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <arpa/inet.h> // for htons
 #include <sys/ioctl.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <net/if.h>
@@ -138,4 +139,37 @@ send_control_message (int fd, int message_type)
     }
 
     return 0;
+}
+
+void
+proxy (int local_fd, int remote_fd)
+{
+    int rv = -1;
+    fd_set fds;
+
+    for (;;)
+    {
+        FD_ZERO (&fds);
+        FD_SET (local_fd, &fds);
+        FD_SET (remote_fd, &fds);
+
+        rv = select (2, &fds, NULL, NULL, NULL);
+        if (rv < 0)
+        {
+            warn ("select");
+            continue;
+        }
+
+        printf ("Select returned\n");
+
+        if (FD_ISSET (local_fd, &fds))
+        {
+            printf ("Would proxy local -> remote\n");
+        }
+
+        if (FD_ISSET (remote_fd, &fds))
+        {
+            printf ("Would proxy remote -> local\n");
+        }
+    }
 }

@@ -38,5 +38,6 @@ main (int argc, char **argv)
     if (rv < 0) errx (253, "Sending control message");
 
     printf ("Server: Sent startup message.\n");
+    proxy (local, remote);
     return 0;
 }
