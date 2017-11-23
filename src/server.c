@@ -11,24 +11,30 @@
 int
 main (int argc, char **argv)
 {
-    int fd = -1;
+    int remote = -1;
+    int local = -1;
     int rv = -1;
-    char *remote_server, *local_socket;
+    char *remote_server, *local_path;
     unsigned short remote_port;
 
-    if (argc < 4) errx (1, "Insufficient arguments (%s <local_socket> <remote_server> <remote_port>)", argv[0]);
+    if (argc < 4) errx (1, "Insufficient arguments (%s <local_socket_path> <remote_server> <remote_port>)", argv[0]);
 
-    local_socket = argv[1];
+    local_path = argv[1];
     remote_server = argv[2];
     remote_port = atoi(argv[3]);
 
-    printf ("Connecting %s to %s:%d\n", local_socket, remote_server, remote_port);
+    printf ("Connecting %s to %s:%d\n", local_path, remote_server, remote_port);
 
     // Open UDP socket to client proxy
-    fd = udp_client_socket (remote_server, remote_port);
-    if (fd < 0) errx (254, "Opening interface");
+    remote = udp_client_socket (remote_server, remote_port);
+    if (remote < 0) errx (254, "Opening remote socket");
 
-    rv = send_control_message (fd, MESSAGE_SETUP_ID);
+    // Create RILd socket
+    local = unix_server_socket (local_path);
+    if (local < 0) errx (253, "Opening local socket");
+
+    // Connected, send startup message
+    rv = send_control_message (remote, MESSAGE_SETUP_ID);
     if (rv < 0) errx (253, "Sending control message");
 
     printf ("Server: Sent startup message.\n");
