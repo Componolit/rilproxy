@@ -120,3 +120,22 @@ get_uid (const char *username)
 
     return radio_user->pw_uid;
 }
+
+int
+send_control_message (int fd, int message_type)
+{
+    int rv = -1;
+    message_t message;
+
+    message.length = 4;
+    message.id     = message_type;
+
+    rv = write (fd, &message, sizeof (message));
+    if (rv < 0)
+    {
+        warn ("write");
+        return -1;
+    }
+
+    return 0;
+}
