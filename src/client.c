@@ -17,6 +17,8 @@ main (void)
     ssize_t msize;
     message_t *message;
 
+    printf ("Radio user UID=%d\n", get_uid("radio"));
+
     fd = udp_server_socket (RILPROXY_PORT);
     if (fd < 0)
     {

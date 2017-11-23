@@ -2,6 +2,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <arpa/inet.h> // for htons
 #include <sys/ioctl.h>
@@ -103,4 +104,19 @@ unix_server_socket (const char *socket_path)
     close (fd);
     unlink (socket_path);
     return (msgfd);
+}
+
+int
+get_uid (const char *username)
+{
+    struct passwd *radio_user;
+
+    radio_user = getpwnam (username);
+    if (radio_user == NULL)
+    {
+        warn ("getpwnam(radio)");
+        return -1;
+    }
+
+    return radio_user->pw_uid;
 }

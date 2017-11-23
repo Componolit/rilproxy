@@ -7,6 +7,7 @@ int udp_client_socket (const char *host, unsigned short port);
 int udp_server_socket (unsigned short port);
 int unix_client_socket (const char *socket_path);
 int unix_server_socket (const char *socket_path);
+int get_uid (const char *username);
 
 typedef struct
 {
