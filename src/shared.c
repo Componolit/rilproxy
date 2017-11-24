@@ -162,7 +162,7 @@ send_control_message (int fd, uint32_t message_type)
 }
 
 int
-socket_copy (int source_fd, int dest_fd)
+socket_copy (int source_fd, int dest_fd, const char *label)
 {
     ssize_t bytes_written = -1;
     ssize_t bytes_read = -1;
@@ -181,8 +181,6 @@ socket_copy (int source_fd, int dest_fd)
         return -SOCKET_COPY_READ_CLOSED;
     }
 
-    warnx ("read %zd bytes", bytes_read);
-
     bytes_written = write (dest_fd, &buffer, bytes_read);
     if (bytes_written < 0)
     {
@@ -196,7 +194,7 @@ socket_copy (int source_fd, int dest_fd)
         return 0;
     }
 
-    warnx ("wrote %zd bytes", bytes_written);
+    warnx ("%s: read %zd, wrote %zd bytes", label, bytes_read, bytes_written);
     return 0;
 }
 
@@ -221,14 +219,12 @@ proxy (int local_fd, int remote_fd)
 
         if (FD_ISSET (local_fd, &fds))
         {
-            printf ("Server: local -> remote\n");
-            socket_copy (local_fd, remote_fd);
+            socket_copy (local_fd, remote_fd, "local -> remote");
         }
 
         if (FD_ISSET (remote_fd, &fds))
         {
-            printf ("Server: remote -> local\n");
-            socket_copy (remote_fd, local_fd);
+            socket_copy (remote_fd, local_fd, "remote -> local");
         }
     }
 }
