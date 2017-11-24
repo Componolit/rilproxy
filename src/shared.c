@@ -17,64 +17,34 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 int
-socket_make_reusable (int fd)
+udp_socket (const char *host, unsigned short port)
 {
-    int rv = -1;
-    int enable = 1;
-
-    rv = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-    if (rv < 0)
-    {
-        warn ("setsockopt(SO_REUSEADDR)");
-        return -1;
-    }
-
-    return 0;
-}
-
-int
-udp_client_socket (const char *host, unsigned short port)
-{
-    struct sockaddr_in addr;
-    int fd, rv;
-
-    fprintf (stderr, "Opening %s:%d\n", host, port);
-
-    fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (fd < 0) err (2, "socket");
-
-    memset (&addr, 0, sizeof (addr));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port   = htons(port);
-    addr.sin_addr.s_addr = inet_addr(host);
-
-    rv = connect (fd, (struct sockaddr *)&addr, sizeof(addr));
-    if (rv < 0) err (2, "connect");
-
-    return fd;
-}
-
-int
-udp_server_socket (unsigned short port)
-{
-    struct sockaddr_in addr;
+    struct sockaddr_in local_addr;
+    struct sockaddr_in remote_addr;
 	int fd, rv;
 
 	fd = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd < 0) err (1, "socket");
 
-    rv = socket_make_reusable (fd);
-    if (rv < 0) err (2, "socket_make_reusable");
+    int enable = 1;
+    rv = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+    if (rv < 0) warn ("setsockopt(SO_REUSEADDR)");
 	
-	memset (&addr, 0, sizeof (addr));
+	memset (&local_addr, 0, sizeof (local_addr));
 	
-	addr.sin_family      = AF_INET;
-	addr.sin_port        = htons(port);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	local_addr.sin_family      = AF_INET;
+	local_addr.sin_port        = htons(port);
+	local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	
-	rv = bind (fd, (struct sockaddr*)&addr, sizeof(addr));
+	rv = bind (fd, (struct sockaddr*)&local_addr, sizeof(local_addr));
 	if (rv < 0) err (2, "udp_server_socket.bind to %d", port);
+
+    remote_addr.sin_family = AF_INET;
+    remote_addr.sin_port   = htons(port);
+    remote_addr.sin_addr.s_addr = inet_addr(host);
+
+    rv = connect (fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+    if (rv < 0) err (2, "connect");
 
 	return fd;
 }
@@ -143,19 +113,33 @@ unix_server_socket (const char *socket_path, const char *user)
     return (msgfd);
 }
 
+struct passwd *
+get_user (const char *username)
+{
+    struct passwd *user;
+
+    user = getpwnam (username);
+    if (user == NULL)
+    {
+        warn ("getpwnam(%s)", username);
+        return NULL;
+    }
+
+    return user;
+}
+
 int
 get_uid (const char *username)
 {
-    struct passwd *radio_user;
+    struct passwd *user = get_user (username);
+    return user->pw_uid;
+}
 
-    radio_user = getpwnam (username);
-    if (radio_user == NULL)
-    {
-        warn ("getpwnam(%s)", username);
-        return -1;
-    }
-
-    return radio_user->pw_uid;
+int
+get_gid (const char *username)
+{
+    struct passwd *user = get_user (username);
+    return user->pw_gid;
 }
 
 int
@@ -164,7 +148,7 @@ send_control_message (int fd, uint32_t message_type)
     int rv = -1;
     message_t message;
 
-    message.length = 4;
+    message.length = htonl (4);
     message.id     = message_type;
 
     rv = write (fd, &message, sizeof (message));
@@ -265,11 +249,12 @@ wait_control_message (int fd, uint32_t message_type)
         }
 
         message = (message_t *)&buffer;
-        if (message->length == 4 && message->id == message_type)
+        uint32_t len = ntohl (message->length);
+        if (len == 4 && message->id == message_type)
         {
             return;
         }
 
-        printf ("Got unknown message (len=%d, id=%x)\n", message->length, message->id);
+        printf ("Got unknown message (len=%d, id=%x)\n", len, message->id);
     }
 }

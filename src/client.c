@@ -16,19 +16,20 @@ main (int argc, char **argv)
     int rv = -1;
     int remote = -1;
     int local = -1;
-    char *local_path;
+    char *remote_server, *local_path;
     unsigned short local_port;
 
-    if (argc < 3) errx (1, "Insufficient arguments (%s <local_socket_path> <listening port>)", argv[0]);
+    if (argc < 4) errx (1, "Insufficient arguments (%s <local_socket_path> <remote_server> <listening port>)", argv[0]);
 
     warnx ("Started");
 
     local_path = argv[1];
-    local_port = atoi(argv[2]);
+    remote_server = argv[2];
+    local_port = atoi(argv[3]);
 
     // Open listening UDP socket
     warnx ("Setting up UDP socket");
-    remote = udp_server_socket (local_port);
+    remote = udp_socket (remote_server, local_port);
     if (remote < 0) errx (254, "Opening interface");
 
     // Wait for setup message
@@ -37,6 +38,14 @@ main (int argc, char **argv)
 
     // Drop privileges to 'radio'
     warnx ("Dropping privileges");
+
+    rv = setgid (get_gid ("radio"));
+    if (rv < 0)
+    {
+        send_control_message (remote, MESSAGE_TEARDOWN_ID);
+        err (251, "setting group to 'radio'");
+    }
+
     rv = setuid (get_uid ("radio"));
     if (rv < 0)
     {

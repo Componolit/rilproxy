@@ -3,11 +3,11 @@
 
 enum { RILPROXY_PORT = 18912 };
 
-int udp_client_socket (const char *host, unsigned short port);
-int udp_server_socket (unsigned short port);
+int udp_socket (const char *host, unsigned short port);
 int unix_client_socket (const char *socket_path);
 int unix_server_socket (const char *socket_path, const char *user);
 int get_uid (const char *username);
+int get_gid (const char *username);
 int send_control_message (int fd, uint32_t message_type);
 void wait_control_message (int fd, uint32_t message_type);
 void proxy (int local_fd, int remote_fd);
