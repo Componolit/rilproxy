@@ -37,7 +37,7 @@ main (int argc, char **argv)
 
     // Connected, send startup message
     rv = send_control_message (remote, MESSAGE_SETUP_ID);
-    if (rv < 0) errx (253, "Sending control message");
+    if (rv < 0) errx (252, "Sending control message");
     printf ("Server: Sent startup message.\n");
 
     proxy (local, remote);

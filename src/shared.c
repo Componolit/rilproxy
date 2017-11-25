@@ -2,6 +2,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <arpa/inet.h> // for htons
@@ -164,9 +165,11 @@ send_control_message (int fd, uint32_t message_type)
 int
 socket_copy (int source_fd, int dest_fd, const char *label)
 {
+    ssize_t i;
     ssize_t bytes_written = -1;
     ssize_t bytes_read = -1;
     char buffer[1500];
+    char hexdump_buffer[3*sizeof(buffer)+1];
 
     bytes_read = read (source_fd, &buffer, sizeof (buffer));
     if (bytes_read < 0)
@@ -195,6 +198,15 @@ socket_copy (int source_fd, int dest_fd, const char *label)
     }
 
     warnx ("%s: read %zd, wrote %zd bytes", label, bytes_read, bytes_written);
+
+    // Prepare hexdump
+    bzero (hexdump_buffer, sizeof (hexdump_buffer));
+    for (i = 0; i < bytes_read; i++)
+    {
+        sprintf (hexdump_buffer + 3*i, "%02x ", 0xff & buffer[i]);
+    }
+    warnx ("%s: %s", label, hexdump_buffer);
+
     return 0;
 }
 
