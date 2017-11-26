@@ -1,4 +1,4 @@
-service rilproxy /system/bin/logwrapper /system/bin/rilproxy.sh eth0 192.168.37.254/24 192.168.37.1 18912
+service rilproxy /system/bin/logwrapper /system/bin/rilproxy_server.sh eth0 192.168.37.254/24 192.168.37.1 18912
     class main
     user root
     group root
