@@ -3,14 +3,24 @@ ABI ?= armeabi-v7a
 # ABI = arm64-v8a
 
 ISO_FILES=\
-	obj/local/x86_64/rilproxy_server \
 	scripts/install.sh \
 	scripts/rilproxy_server.rc \
 	scripts/rilproxy_server.sh \
 
 all::
+	@echo Chose "device", "vm32", "vm64" or "build" target.
+	@false
+
+build::
 	$(VERBOSE)ndk-build
-	$(VERBOSE)genisoimage -JR -o deploy.iso ${ISO_FILES}
+
+vm32:: build
+	$(VERBOSE)genisoimage -JR -o deploy.iso ${ISO_FILES} obj/local/x86/rilproxy_server
+
+vm64:: build
+	$(VERBOSE)genisoimage -JR -o deploy.iso ${ISO_FILES} obj/local/x86_64/rilproxy_server
+
+device:: build
 	$(VERBOSE)adb root
 	$(VERBOSE)adb shell setprop persist.sys.usb.config rndis,adb
 	$(VERBOSE)adb remount /system
