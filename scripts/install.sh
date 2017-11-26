@@ -9,12 +9,12 @@ mount -o rw,remount /system
 
 echo "Copying files"
 cp -v ${SOURCE_DIR}/rilproxy_server /system/bin/rilproxy_server
-cp -v ${SOURCE_DIR}/rilproxy.sh /system/bin/rilproxy.sh
-cp -v ${SOURCE_DIR}/rilproxy.rc /system/etc/init/rilproxy.rc
+cp -v ${SOURCE_DIR}/rilproxy_server.sh /system/bin/rilproxy_server.sh
+cp -v ${SOURCE_DIR}/rilproxy_server.rc /system/etc/init/rilproxy_server.rc
 
 echo "Fixing permissions"
-chmod 755 /system/bin/rilproxy.sh
-chmod 644 /system/etc/init/rilproxy.rc
+chmod 755 /system/bin/rilproxy_server.sh
+chmod 644 /system/etc/init/rilproxy_server.rc
 
 echo "Backing up RIL rc file"
 

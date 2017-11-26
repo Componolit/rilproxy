@@ -1,0 +1,17 @@
+service rilproxy_client /system/bin/logwrapper /system/bin/rilproxy_client /dev/socket/rild 192.168.37.254 18912
+    class late_start
+    user root
+    group root
+    seclabel u:r:adbd:s0
+
+service rilnet /system/bin/rilproxy_client.sh rndis0
+        class late_start
+        user root
+        group root
+        seclabel u:r:adbd:s0
+        disabled
+        oneshot
+
+on property:dev.bootcomplete=1
+        stop zygote
+        start rilnet
