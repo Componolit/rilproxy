@@ -1,5 +1,15 @@
-service rilproxy /system/bin/logwrapper /system/bin/rilproxy_server.sh eth0 192.168.37.254/24 192.168.37.1 18912
+service rilproxy /system/bin/logwrapper /system/bin/rilproxy_server /dev/socket/rild 192.168.37.1 18912
     class main
     user root
     group root
     seclabel u:r:adbd:s0 
+
+service rilnet /system/bin/logwrapper /system/bin/rilproxy_networking.sh eth0 192.168.37.254/24
+    user root
+    group root
+    seclabel u:r:adbd:s0
+    disabled
+    oneshot
+
+on property:dev.bootcomplete=1
+    start rilnet

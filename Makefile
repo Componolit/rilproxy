@@ -5,7 +5,7 @@ ABI ?= armeabi-v7a
 ISO_FILES=\
 	scripts/install.sh \
 	scripts/rilproxy_server.rc \
-	scripts/rilproxy_server.sh \
+	scripts/rilproxy_networking.sh \
 
 all::
 	@echo Chose "device", "vm32", "vm64" or "build" target.
