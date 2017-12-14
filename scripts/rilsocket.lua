@@ -49,6 +49,11 @@ function rilproxy.dissector(buffer, info, tree)
 
     local header_len = buffer(0,4):uint()
 
+    if header_len < 4 then
+        print("Dropping short header len of " .. header_len)
+        return
+    end
+
     if header_len > 1492
     then
         print("Skipping long buffer of length " .. header_len)
@@ -59,7 +64,6 @@ function rilproxy.dissector(buffer, info, tree)
 
     if buffer_len <= (header_len - 4)
     then
-        print("Short buffer of length " .. buffer_len .. " (header len " .. header_len .. ")")
         bytesMissing = header_len - buffer_len + 4
         cache:append(buffer(0):bytes())
         buffer = nil
@@ -68,6 +72,9 @@ function rilproxy.dissector(buffer, info, tree)
 
     cache = ByteArray.new()
     bytesMissing = 0
+
+    info.cols['protocol'] = 'RILProxy'
+    info.cols['info'] = 'RIL[' .. header_len .. ']'
 
     local t = tree:add(rilproxy, buffer, "RIL Proxy")
     t:add(rilproxy.fields.length, header_len)
