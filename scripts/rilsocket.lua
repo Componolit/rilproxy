@@ -10,7 +10,7 @@ MessageID = {
 
 rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
 rilproxy.fields.id      = ProtoField.uint32('rilproxy.id', 'ID', base.HEX, MessageID)
-rilproxy.fields.content = ProtoField.string('rilproxy.content', 'Content', base.HEX)
+rilproxy.fields.content = ProtoField.bytes('rilproxy.content', 'Content', base.HEX)
 
 function rilproxy.init()
     cache = ByteArray.new()
@@ -88,12 +88,12 @@ function rilproxy.dissector(buffer, info, tree)
     end
 
     local t = tree:add(rilproxy, buffer, "RIL Proxy")
-    t:add(rilproxy.fields.length, header_len)
-    t:add(rilproxy.fields.id, id)
+    t:add(rilproxy.fields.length, buffer(0,4))
+    t:add_le(rilproxy.fields.id, buffer(4,4))
 
     if header_len - 8 > 0
     then
-        t:add(rilproxy.fields.content, buffer:range(9, header_len - 8))
+        t:add(rilproxy.fields.content, buffer:range(8, header_len - 4))
     end
 end
 
