@@ -85,16 +85,24 @@ function rilproxy.dissector(buffer, info, tree)
     if MessageID[id] ~= nil
     then
         info.cols.info = MessageID[id]
+    else
+        info.cols.info = "RILd unknown message " .. id
     end
 
-    local t = tree:add(rilproxy, buffer, "RIL Proxy")
+    local t = tree:add(rilproxy, buffer(header_len):tvb(), "RIL Proxy")
     t:add(rilproxy.fields.length, buffer(0,4))
     t:add_le(rilproxy.fields.id, buffer(4,4))
 
-    if header_len - 8 > 0
+    if header_len - 4 > 0
     then
         t:add(rilproxy.fields.content, buffer:range(8, header_len - 4))
     end
+
+    if buffer_len >  header_len + 4
+    then
+        info.cols.info = "RILd messages"
+    end
+
 end
 
 local udp_port_table = DissectorTable.get("udp.port")
