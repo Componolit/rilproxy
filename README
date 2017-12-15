@@ -1,0 +1,23 @@
+Program to proxy packets transmitted between Android's native radio interfaces
+layer daemon (RILd) and the com.android.phone service. Traffic is intersected
+at the `/dev/socket/rild` UNIX domain socket and forwarded via UDP. Socket path
+and UDP port are configurable.
+
+Additional control messages ensure that the RILd socket on the device providing
+the radio functionality is opened *after* the socket has been opened on the
+other device. This is required to ensure that the initial unsolicited startup
+message from RILd is received by the phone process.
+
+A rudimentary Wirkeshark dissector for the protocol run on `/dev/socket/rild` is
+available in `scripts/rilsocket.lua`.
+
+
+Shortcomings/future work:
+
+* Implement fragmentation for messages greater MTU (minus overhead)
+* Signal direction through a flag
+* Implement raw Ethernet transport in addition to UDP
+* Dissect multiple RIL packets in one UDP message
+* Dissect more protocol messages
+
+(C) 2017, Alexander Senier <senier@componolit.com>
