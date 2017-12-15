@@ -3,7 +3,13 @@
 
 local rilproxy = Proto("rild", "Android RILd socket");
 
+MessageID = {
+    [0xC715] = "SETUP",
+    [0xC717] = "TEARDOWN"
+}
+
 rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
+rilproxy.fields.id      = ProtoField.uint32('rilproxy.id', 'ID', base.HEX, MessageID)
 rilproxy.fields.content = ProtoField.string('rilproxy.content', 'Content', base.HEX)
 
 function rilproxy.init()
@@ -47,7 +53,7 @@ function rilproxy.dissector(buffer, info, tree)
         return
     end
 
-    local header_len = buffer(0,4):uint()
+    local header_len = buffer:range(0,4):uint()
 
     if header_len < 4 then
         print("Dropping short header len of " .. header_len)
@@ -73,12 +79,22 @@ function rilproxy.dissector(buffer, info, tree)
     cache = ByteArray.new()
     bytesMissing = 0
 
-    info.cols['protocol'] = 'RILProxy'
-    info.cols['info'] = 'RIL[' .. header_len .. ']'
+    info.cols.protocol = ('RILProxy')
+
+    local id = buffer:range(4,4):le_uint()
+    if MessageID[id] ~= nil
+    then
+        info.cols.info = MessageID[id]
+    end
 
     local t = tree:add(rilproxy, buffer, "RIL Proxy")
     t:add(rilproxy.fields.length, header_len)
-    t:add(rilproxy.fields.content, buffer(4, header_len))
+    t:add(rilproxy.fields.id, id)
+
+    if header_len - 8 > 0
+    then
+        t:add(rilproxy.fields.content, buffer:range(9, header_len - 8))
+    end
 end
 
 local udp_port_table = DissectorTable.get("udp.port")
