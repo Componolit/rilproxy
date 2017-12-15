@@ -1,7 +1,7 @@
 -- This is Wireshark/tshark packet dissector for RILd messages. Place it into
 -- your local plugin directory (e.g. $HOME/.wireshark/plugins/)
 
-local rilproxy = Proto("rild", "Android RILd socket");
+local rilproxy = Proto("rild", "RILd socket");
 
 MessageID = {
     [0xC715] = "SETUP",
@@ -11,6 +11,15 @@ MessageID = {
 rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
 rilproxy.fields.id      = ProtoField.uint32('rilproxy.id', 'ID', base.HEX, MessageID)
 rilproxy.fields.content = ProtoField.bytes('rilproxy.content', 'Content', base.HEX)
+
+function message_type(id)
+    if MessageID[id] ~= nil
+    then
+        return MessageID[id]
+    end
+
+    return "UNKNOWN_MESSAGE_" .. id
+end
 
 function rilproxy.init()
     cache = ByteArray.new()
@@ -81,15 +90,16 @@ function rilproxy.dissector(buffer, info, tree)
 
     info.cols.protocol = ('RILProxy')
 
-    local id = buffer:range(4,4):le_uint()
-    if MessageID[id] ~= nil
+    mt = message_type(buffer:range(4,4):le_uint())
+    info.cols.info = mt
+
+    if buffer_len >  header_len + 4
     then
-        info.cols.info = MessageID[id]
-    else
-        info.cols.info = "RILd unknown message " .. id
+        info.cols.info = "Messages"
+        tree = tree:add(rilproxy, buffer(buffer_len):tvb(), ": Messages")
     end
 
-    local t = tree:add(rilproxy, buffer(header_len):tvb(), "RIL Proxy")
+    local t = tree:add(rilproxy, buffer(header_len):tvb(), mt)
     t:add(rilproxy.fields.length, buffer(0,4))
     t:add_le(rilproxy.fields.id, buffer(4,4))
 
