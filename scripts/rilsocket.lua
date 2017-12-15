@@ -69,6 +69,7 @@ function rilproxy.dissector(buffer, info, tree)
         return
     end
 
+    --  FIXME: Upper limit?
     if header_len > 1492
     then
         print("Skipping long buffer of length " .. header_len)
@@ -88,31 +89,25 @@ function rilproxy.dissector(buffer, info, tree)
     cache = ByteArray.new()
     bytesMissing = 0
 
-    info.cols.protocol = ('RILProxy')
-
     mt = message_type(buffer:range(4,4):le_uint())
-    info.cols.info = mt
 
-    if buffer_len >  header_len + 4
-    then
-        info.cols.info = "Messages"
-        tree = tree:add(rilproxy, buffer(buffer_len):tvb(), ": Messages")
-    end
+    info.cols.protocol = 'RILProxy'
+    info.cols.info:append(", " .. mt)
 
-    local t = tree:add(rilproxy, buffer(header_len):tvb(), mt)
-    t:add(rilproxy.fields.length, buffer(0,4))
-    t:add_le(rilproxy.fields.id, buffer(4,4))
+    local subtree = tree:add(rilproxy, buffer(header_len):tvb(), mt)
+    subtree:add(rilproxy.fields.length, buffer(0,4))
+    subtree:add_le(rilproxy.fields.id, buffer(4,4))
 
     if header_len - 4 > 0
     then
-        t:add(rilproxy.fields.content, buffer:range(8, header_len - 4))
+        subtree:add(rilproxy.fields.content, buffer:range(8, header_len - 4))
     end
 
-    if buffer_len >  header_len + 4
+    -- If data is left in buffer, run dissector on it
+    if buffer_len > header_len + 4
     then
-        info.cols.info = "RILd messages"
+        rilproxy.dissector (buffer:range(header_len + 4, -1):tvb(), info, tree)
     end
-
 end
 
 local udp_port_table = DissectorTable.get("udp.port")
