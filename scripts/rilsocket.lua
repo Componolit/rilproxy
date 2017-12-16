@@ -2,15 +2,44 @@
 -- your local plugin directory (e.g. $HOME/.wireshark/plugins/)
 
 local rilproxy = Proto("rild", "RILd socket");
+local src_ip_addr_f = Field.new("ip.src")
+local dst_ip_addr_f = Field.new("ip.dst")
 
 MessageID = {
     [0xC715] = "SETUP",
     [0xC717] = "TEARDOWN"
 }
 
+DIR_UNKNOWN = 0
+DIR_FROM_AP = 1
+DIR_FROM_BP = 2
+
+DirectionLabel = {
+    [DIR_UNKNOWN] = "[??->??]",
+    [DIR_FROM_AP] = "[AP->BP]",
+    [DIR_FROM_BP] = "[BP->AP]"
+}
+
 rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
 rilproxy.fields.id      = ProtoField.uint32('rilproxy.id', 'ID', base.HEX, MessageID)
 rilproxy.fields.content = ProtoField.bytes('rilproxy.content', 'Content', base.HEX)
+
+function direction()
+    local src_ip = tostring(src_ip_addr_f())
+    local dst_ip = tostring(dst_ip_addr_f())
+
+    if (src_ip == ap_ip and dst_ip == bp_ip)
+    then
+        return DIR_FROM_AP
+    end
+
+    if (src_ip == bp_ip and dst_ip == ap_ip)
+    then
+        return DIR_FROM_BP
+    end
+
+    return DIR_UNKNOWN
+end
 
 function message_type(id)
     if MessageID[id] ~= nil
@@ -25,6 +54,8 @@ function rilproxy.init()
     cache = ByteArray.new()
     bytesMissing = 0
     subDissector = false
+    ap_ip = nil
+    bp_ip = nil
 end
 
 function rilproxy.dissector(buffer, info, tree)
@@ -92,10 +123,17 @@ function rilproxy.dissector(buffer, info, tree)
 
     mt = message_type(buffer:range(4,4):le_uint())
 
-    if subDissector == true then
+    if mt == "SETUP"
+    then
+        ap_ip = tostring(src_ip_addr_f())
+        bp_ip = tostring(dst_ip_addr_f())
+    end
+
+    if subDissector == true
+    then
         info.cols.info:append (", ")
     else
-        info.cols.info = ""
+        info.cols.info = DirectionLabel[direction()] .. " "
     end
 
     info.cols.info:append(mt)
