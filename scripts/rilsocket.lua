@@ -24,6 +24,7 @@ end
 function rilproxy.init()
     cache = ByteArray.new()
     bytesMissing = 0
+    subDissector = false
 end
 
 function rilproxy.dissector(buffer, info, tree)
@@ -91,7 +92,13 @@ function rilproxy.dissector(buffer, info, tree)
 
     mt = message_type(buffer:range(4,4):le_uint())
 
-    info.cols.info = mt
+    if subDissector == true then
+        info.cols.info:append (", ")
+    else
+        info.cols.info = ""
+    end
+
+    info.cols.info:append(mt)
     info.cols.protocol = 'RILProxy'
 
     local subtree = tree:add(rilproxy, buffer:range(0, header_len + 4), mt)
@@ -103,17 +110,13 @@ function rilproxy.dissector(buffer, info, tree)
         subtree:add(rilproxy.fields.content, buffer:range(8, header_len - 4))
     end
 
-    subinfo = {}
-
     -- If data is left in buffer, run dissector on it
     if buffer_len > header_len + 4
     then
-        rilproxy.dissector (buffer:range(header_len + 4, -1):tvb(), subinfo, tree)
-    end
-
-    if subinfo.cols.info
-    then
-        info.cols.info:append(", " .. tostring(subinfo.cols.info))
+        local previous = subDissector
+        subDissector = true
+        rilproxy.dissector (buffer:range(header_len + 4, -1):tvb(), info, tree)
+        subDissector = previous
     end
 end
 
