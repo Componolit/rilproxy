@@ -5,10 +5,40 @@ local rilproxy = Proto("rild", "RILd socket");
 local src_ip_addr_f = Field.new("ip.src")
 local dst_ip_addr_f = Field.new("ip.dst")
 
-MessageID = {
-    [0xC715] = "SETUP",
-    [0xC717] = "TEARDOWN"
+-----------------
+-- Request IDs --
+-----------------
+
+-- RIL socket messages
+RQ_SETUP    = 0xC715
+RQ_TEARDOWN = 0xC717
+
+RequestID = {
+    [RQ_SETUP]    = "SETUP",
+    [RQ_TEARDOWN] = "TEARDOWN"
 }
+
+---------------
+-- Reply IDs --
+---------------
+
+-- RIL message
+RP_REPLY    = 0x0000
+RP_UNSOL    = 0x0001
+
+ReplyID = {
+    [RP_REPLY]    = "REPLY",
+    [RP_UNSOL]    = "UNSOL"
+}
+
+------------------------------
+-- Unsolicited Response IDs --
+------------------------------
+
+UnsolID = {
+}
+
+------------------------------
 
 DIR_UNKNOWN = 0
 DIR_FROM_AP = 1
@@ -22,6 +52,9 @@ DirectionLabel = {
 
 rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
 rilproxy.fields.id      = ProtoField.uint32('rilproxy.id', 'ID', base.HEX, MessageID)
+rilproxy.fields.token   = ProtoField.uint32('rilproxy.token', 'Token', base.HEX)
+rilproxy.fields.result  = ProtoField.uint32('rilproxy.result', 'Result', base.DEC)
+rilproxy.fields.event   = ProtoField.uint32('rilproxy.event', 'Event', base.DEC)
 rilproxy.fields.content = ProtoField.bytes('rilproxy.content', 'Content', base.HEX)
 
 function direction()
@@ -41,13 +74,13 @@ function direction()
     return DIR_UNKNOWN
 end
 
-function message_type(id)
-    if MessageID[id] ~= nil
+function maybe_unknown(value)
+    if value ~= nil
     then
-        return MessageID[id]
+        return value
     end
 
-    return "UNKNOWN_MESSAGE_" .. id
+    return "UNKNOWN"
 end
 
 function rilproxy.init()
@@ -121,13 +154,12 @@ function rilproxy.dissector(buffer, info, tree)
     cache = ByteArray.new()
     bytesMissing = 0
 
-    mt = message_type(buffer:range(4,4):le_uint())
-
-    if mt == "SETUP"
+    local id = buffer(4,4):le_uint()
+    if (id == RQ_SETUP)
     then
         ap_ip = tostring(src_ip_addr_f())
         bp_ip = tostring(dst_ip_addr_f())
-    end
+    end        
 
     if subDissector == true
     then
@@ -136,17 +168,47 @@ function rilproxy.dissector(buffer, info, tree)
         info.cols.info = DirectionLabel[direction()] .. " "
     end
 
-    info.cols.info:append(mt)
     info.cols.protocol = 'RILProxy'
 
-    local subtree = tree:add(rilproxy, buffer:range(0, header_len + 4), mt)
+    local subtree = tree:add(rilproxy, buffer:range(0, header_len + 4), "RIL message")
     subtree:add(rilproxy.fields.length, buffer(0,4))
     subtree:add_le(rilproxy.fields.id, buffer(4,4))
 
-    if header_len - 4 > 0
+    if (direction() == DIR_FROM_AP)
     then
-        subtree:add(rilproxy.fields.content, buffer:range(8, header_len - 4))
+        -- Request
+        info.cols.info:append("REQUEST(" .. maybe_unknown(RequestID[id]) .. ")")
+        subtree:add_le(rilproxy.fields.token, buffer(8,4))
+        if (buffer_len > 12)
+        then
+            subtree:add(rilproxy.fields.content, buffer(12,-1))
+        end
+    elseif direction() == DIR_FROM_BP
+    then
+        if (id == RP_REPLY)
+        then
+            info.cols.info:append("REPLY")
+            subtree:add_le(rilproxy.fields.token, buffer(8,4))
+            subtree:add_le(rilproxy.fields.result, buffer(12,4))
+            if (buffer_len > 16)
+            then
+                subtree:add(rilproxy.fields.content, buffer(16,-1))
+            end
+        elseif (id == RP_UNSOL)
+        then
+            info.cols.info:append("UNSOL")
+            subtree:add_le(rilproxy.fields.event, buffer(8,4))
+            if (buffer_len > 12)
+            then
+                subtree:add(rilproxy.fields.content, buffer(12,-1))
+            end
+        else
+            info.cols.info:append("UNKNOWN REPLY")
+        end
+    else
+        info.cols.info:append("INVALID DIRECTION")
     end
+
 
     -- If data is left in buffer, run dissector on it
     if buffer_len > header_len + 4
