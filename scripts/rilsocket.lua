@@ -5,6 +5,26 @@
 -- Place the resulting file as ril_h.lua into your plugin directory
 local ril_h = require 'ril_h'
 
+-- hexdump dissector
+local rild_content = Proto("rild.content", "Hexdump content");
+
+rild_content.fields.content = ProtoField.bytes("rild.hexdump", "Hexdump", base.HEX)
+
+function rild_content.dissector(buffer, info, tree)
+    tree:add(rild_content.fields.content, buffer:range(0,-1))
+end
+
+-- UNSOL(RIL_CONNECTED) dissector
+local unsol_ril_connected = Proto("rild.unsol.ril_connected", "RIL_CONNECTED");
+
+unsol_ril_connected.fields.content = ProtoField.bytes('rild_unsol_ril_connected.content', 'RIL_CONNECTED CONTENT', base.HEX)
+
+function unsol_ril_connected.dissector(buffer, info, tree)
+    print("RIL_CONNECTED dissector")
+    tree:add(unsol_ril_connected.fields.content, buffer:range(0,-1))
+end
+
+-- RILd dissector
 local rilproxy = Proto("rild", "RILd socket");
 local src_ip_addr_f = Field.new("ip.src")
 local dst_ip_addr_f = Field.new("ip.dst")
@@ -33,7 +53,8 @@ rilproxy.fields.mtype   = ProtoField.uint32('rilproxy.mtype', 'Type', base.DEC, 
 rilproxy.fields.token   = ProtoField.uint32('rilproxy.token', 'Token', base.HEX)
 rilproxy.fields.result  = ProtoField.uint32('rilproxy.result', 'Result', base.DEC, ERROR)
 rilproxy.fields.event   = ProtoField.uint32('rilproxy.event', 'Event', base.DEC, UNSOL)
-rilproxy.fields.content = ProtoField.bytes('rilproxy.content', 'Content', base.HEX)
+
+all_dissectors = {}
 
 function direction()
     local src_ip = tostring(src_ip_addr_f())
@@ -55,10 +76,25 @@ end
 function maybe_unknown(value)
     if value ~= nil
     then
-        return value
+        return value:lower()
     end
 
-    return "UNKNOWN"
+    return "unknown"
+end
+
+function query_dissector(name)
+
+    name = name:lower()
+    if all_dissectors[name] ~= nil
+    then
+        print("Found dissector " .. name)
+        dissector = Dissector.get(name)
+    else
+        print("Not found dissector " .. name)
+        dissector = Dissector.get("rild.content")
+    end
+
+    return dissector
 end
 
 function rilproxy.init()
@@ -67,6 +103,11 @@ function rilproxy.init()
     subDissector = false
     ap_ip = nil
     bp_ip = nil
+
+    for key,value in pairs(Dissector.list())
+    do
+        all_dissectors[value] = key
+    end
 end
 
 function add_default_fields(tree, message, buffer, length)
@@ -167,7 +208,8 @@ function rilproxy.dissector(buffer, info, tree)
         end
         if (buffer_len > 12)
         then
-            subtree:add(rilproxy.fields.content, buffer(12,-1))
+            dissector = query_dissector("rild.request." .. REQUEST[rid])
+            dissector:call(buffer(12,-1):tvb(), info, subtree)
         end
     elseif direction() == DIR_FROM_BP
     then
@@ -183,7 +225,8 @@ function rilproxy.dissector(buffer, info, tree)
             subtree:add_le(rilproxy.fields.result, buffer(12,4))
             if (buffer_len > 16)
             then
-                subtree:add(rilproxy.fields.content, buffer(16,-1))
+                dissector = query_dissector("rild.reply." .. ERROR[result])
+                dissector:call(buffer(16,-1):tvb(), info, subtree)
             end
         elseif (mtype == MTYPE_UNSOL)
         then
@@ -195,7 +238,8 @@ function rilproxy.dissector(buffer, info, tree)
             subtree:add_le(rilproxy.fields.event, buffer(8,4))
             if (buffer_len > 12)
             then
-                subtree:add(rilproxy.fields.content, buffer(12,-1))
+                dissector = query_dissector("rild.unsol." .. UNSOL[event])
+                dissector:call(buffer(12,-1):tvb(), info, subtree)
             end
         else
             info.cols.info:append("UNKNOWN REPLY")
