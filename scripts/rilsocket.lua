@@ -118,6 +118,37 @@ function request_cdma_set_subscription_source.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(SET_UNSOL_CELL_INFO_LIST_RATE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_set_unsol_cell_info_list_rate = Proto("rild.request.set_unsol_cell_info_list_rate", "SET_UNSOL_CELL_INFO_LIST_RATE");
+
+request_set_unsol_cell_info_list_rate.fields.rate_ms =
+    ProtoField.uint32('rild.request.set_unsol_cell_info_list_rate.fields.rate_ms', 'Rate [ms]', base.DEC)
+request_set_unsol_cell_info_list_rate.fields.rate =
+    ProtoField.string('rild.request.set_unsol_cell_info_list_rate.fields.rate', 'Rate')
+
+function request_set_unsol_cell_info_list_rate.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 1
+    then
+        if (values[1] == 0)
+        then
+            -- Invoke UNSOL(CELL_INFO_LIST) when information changes
+            tree:add(request_set_unsol_cell_info_list_rate.fields.rate, buffer:range(4,4), "ON CHANGE")
+        elseif (values[1] == 0x7fffffff)
+        then
+            -- Never invoke UNSOL(CELL_INFO_LIST)
+            tree:add(request_set_unsol_cell_info_list_rate.fields.rate, buffer:range(4,4), "NEVER")
+        else
+            -- Invoke UNSOL(CELL_INFO_LIST) every n milli-seconds
+            tree:add_le(request_set_unsol_cell_info_list_rate.fields.rate_ms, buffer:range(4,4))
+        end
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
