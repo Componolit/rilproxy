@@ -92,7 +92,7 @@ function request_radio_power.dissector(buffer, info, tree)
     values = parse_int_list(buffer)
     if #values == 1
     then
-        tree:add(request_radio_power.fields.power, values[1])
+        tree:add(request_radio_power.fields.power, buffer:range(4,4))
     else
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
@@ -111,7 +111,7 @@ function request_cdma_set_subscription_source.dissector(buffer, info, tree)
     values = parse_int_list(buffer)
     if #values == 1
     then
-        tree:add(request_cdma_set_subscription_source.fields.subscription, values[1])
+        tree:add(request_cdma_set_subscription_source.fields.subscription, buffer:range(4,4))
     else
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
