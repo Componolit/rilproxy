@@ -3,7 +3,17 @@
 import sys
 import re
 
-tables = { 'REQUEST': {}, 'RESPONSE': {}, 'UNSOL': {}, 'ERROR': {}}
+enums = ['RIL_E', 'RIL_CALL', 'RADIO_STATE']
+tables = { 'REQUEST': {}, 'RESPONSE': {}, 'UNSOL': {}}
+
+def extract_enums(prefixes, tables, line):
+    for prefix in prefixes:
+        match = re.match ('\s+%s_([^ ]+)\s*=\s*([^, ]+),?' % (prefix), line)
+        if match:
+            tables[prefix][match.group(1)] = int(match.group(2))
+
+for enum in enums:
+    tables[enum] = {}
 
 with open (sys.argv[1], 'r') as r:
     for line in r:
@@ -25,9 +35,7 @@ with open (sys.argv[1], 'r') as r:
                 sys.exit(1)
 
         # Error codes
-        match = re.match ('\s+RIL_E_([^ ]+)\s*=\s*([^, ]+),', line)
-        if match:
-            tables['ERROR'][match.group(1)] = int(match.group(2))
+        extract_enums(enums, tables, line)
 
 # rilproxy specific request codes
 tables['REQUEST']['SETUP'] = 0xc715
