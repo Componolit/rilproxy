@@ -99,6 +99,25 @@ function request_radio_power.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(CDMA_SET_SUBSCRIPTION_SOURCE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_cdma_set_subscription_source = Proto("rild.request.cdma_set_subscription_source", "REQUEST_CDMA_SET_SUBSCRIPTION_SOURCE");
+
+request_cdma_set_subscription_source.fields.subscription =
+    ProtoField.uint32('rild.request.cdma_set_subscription_source.fields.subscription', 'Subscription source', base.DEC, CDMA_SUBSCRIPTION)
+
+function request_cdma_set_subscription_source.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add(request_cdma_set_subscription_source.fields.subscription, values[1])
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
