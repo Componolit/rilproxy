@@ -38,6 +38,24 @@ function unsol_ril_connected.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(RESPONSE_RADIO_STATE_CHANGED) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local unsol_response_radio_state_changed = Proto("rild.unsol.response_radio_state_changed", "RESPONSE_RADIO_STATE_CHANGED");
+
+-- According to ril.h, RESPONSE_RADIO_STATE_CHANGED has no data payload.
+-- However, older RIL.java sources mention that is "has bonus radio state int" which is casted into RadioState.
+-- Try to extract and convert this additional field.
+unsol_response_radio_state_changed.fields.version =
+    ProtoField.uint32('rild.unsol.response_radio_state_changed.', 'Radio state', base.DEC, RADIO_STATE)
+
+function unsol_response_radio_state_changed.dissector(buffer, info, tree)
+    if buffer:len() > 3
+    then
+        tree:add_le(unsol_response_radio_state_changed.fields.version, buffer:range(0,4))
+    end
+end
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local rilproxy = Proto("rild", "RILd socket");
