@@ -19,7 +19,7 @@ function parse_int_list(buffer)
     assert(buffer:len() > 3)
     local len = buffer:range(0,4):le_uint()
     assert(4 * len + 4 <= buffer:len())
-    for i = 0, len - 1
+    for i = 1, len
     do
         table.insert(result, buffer:range(4*i, 4):le_uint())
     end
