@@ -17,11 +17,20 @@ end
 -- UNSOL(RIL_CONNECTED) dissector
 local unsol_ril_connected = Proto("rild.unsol.ril_connected", "RIL_CONNECTED");
 
-unsol_ril_connected.fields.content = ProtoField.bytes('rild_unsol_ril_connected.content', 'RIL_CONNECTED CONTENT', base.HEX)
+unsol_ril_connected.fields.version = ProtoField.uint32('rild.unsol_ril_connected.version', 'RIL version', base.DEC)
+
+-- Register expert info fields
+local unsol_ril_connected_error = ProtoExpert.new("rild.unsol.ril_connected.error", "Error decoding RIL_CONNECTED message", expert.group.MALFORMED, expert.severity.ERROR)
+unsol_ril_connected.experts = { unsol_ril_connected_error }
 
 function unsol_ril_connected.dissector(buffer, info, tree)
-    print("RIL_CONNECTED dissector")
-    tree:add(unsol_ril_connected.fields.content, buffer:range(0,-1))
+    local len = buffer:range(0,4):le_uint()
+    if len == 1
+    then
+        tree:add_le(unsol_ril_connected.fields.version, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(unsol_ril_connected_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. len .. ")")
+    end
 end
 
 -- RILd dissector
