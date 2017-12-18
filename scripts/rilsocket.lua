@@ -51,6 +51,7 @@ rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DE
 rilproxy.fields.request = ProtoField.uint32('rilproxy.request', 'Request', base.HEX, REQUEST)
 rilproxy.fields.mtype   = ProtoField.uint32('rilproxy.mtype', 'Type', base.DEC, MTYPE)
 rilproxy.fields.token   = ProtoField.uint32('rilproxy.token', 'Token', base.HEX)
+rilproxy.fields.reply   = ProtoField.framenum('rilproxy.reply', 'In reply to frame', base.NONE, frametype.RESPONSE)
 rilproxy.fields.result  = ProtoField.uint32('rilproxy.result', 'Result', base.DEC, ERROR)
 rilproxy.fields.event   = ProtoField.uint32('rilproxy.event', 'Event', base.DEC, UNSOL)
 
@@ -103,6 +104,7 @@ function rilproxy.init()
     subDissector = false
     ap_ip = nil
     bp_ip = nil
+    frames = {}
 
     for key,value in pairs(Dissector.list())
     do
@@ -204,6 +206,7 @@ function rilproxy.dissector(buffer, info, tree)
         subtree:add_le(rilproxy.fields.request, buffer(4,4))
         if (buffer_len > 8)
         then
+            frames[buffer(8,4):le_uint()] = info.number
             subtree:add_le(rilproxy.fields.token, buffer(8,4))
         end
         if (buffer_len > 12)
@@ -222,6 +225,10 @@ function rilproxy.dissector(buffer, info, tree)
             subtree = add_default_fields(tree, message, buffer, header_len + 4)
             subtree:add_le(rilproxy.fields.mtype, buffer(4,4))
             subtree:add_le(rilproxy.fields.token, buffer(8,4))
+            if frames[buffer(8,4):le_uint()] ~= nil
+            then
+                subtree:add(rilproxy.fields.reply, frames[buffer(8,4):le_uint()])
+            end
             subtree:add_le(rilproxy.fields.result, buffer(12,4))
             if (buffer_len > 16)
             then
