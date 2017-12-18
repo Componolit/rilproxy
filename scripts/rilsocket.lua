@@ -5,6 +5,12 @@
 -- Place the resulting file as ril_h.lua into your plugin directory
 local ril_h = require 'ril_h'
 
+local rilproxy = Proto("rild", "RILd socket");
+
+-- Register expert info fields
+local rild_error = ProtoExpert.new("rild.error", "Error decoding RIL message", expert.group.MALFORMED, expert.severity.ERROR)
+rilproxy.experts = { rild_error }
+
 -----------------------------------------------------------------------------------------------------------------------
 -- Helper functions
 -----------------------------------------------------------------------------------------------------------------------
@@ -38,17 +44,13 @@ local unsol_ril_connected = Proto("rild.unsol.ril_connected", "RIL_CONNECTED");
 
 unsol_ril_connected.fields.version = ProtoField.uint32('rild.unsol_ril_connected.version', 'RIL version', base.DEC)
 
--- Register expert info fields
-local unsol_ril_connected_error = ProtoExpert.new("rild.unsol.ril_connected.error", "Error decoding RIL_CONNECTED message", expert.group.MALFORMED, expert.severity.ERROR)
-unsol_ril_connected.experts = { unsol_ril_connected_error }
-
 function unsol_ril_connected.dissector(buffer, info, tree)
     values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add_le(unsol_ril_connected.fields.version, buffer:range(4,4))
     else
-        tree:add_tvb_expert_info(unsol_ril_connected_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. len .. ")")
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
 end
 
@@ -62,7 +64,7 @@ local unsol_response_radio_state_changed = Proto("rild.unsol.response_radio_stat
 -- However, older RIL.java sources mention that is "has bonus radio state int" which is casted into RadioState.
 -- Try to extract and convert this additional field.
 unsol_response_radio_state_changed.fields.version =
-    ProtoField.uint32('rild.unsol.response_radio_state_changed.', 'Radio state', base.DEC, RADIO_STATE)
+    ProtoField.uint32('rild.unsol.response_radio_state_changed.state', 'Radio state', base.DEC, RADIO_STATE)
 
 function unsol_response_radio_state_changed.dissector(buffer, info, tree)
     if buffer:len() > 3
@@ -70,10 +72,35 @@ function unsol_response_radio_state_changed.dissector(buffer, info, tree)
         tree:add_le(unsol_response_radio_state_changed.fields.version, buffer:range(0,4))
     end
 end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(RADIO_POWER) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_radio_power = Proto("rild.request.radio_power", "REQUEST_RADIO_POWER");
+
+-- FIXME: 'on' actually means > 0
+RADIO_POWER = {
+    [0] = "off",
+    [1] = "on"
+}
+
+request_radio_power.fields.power =
+    ProtoField.uint32('rild.request.radio_power.power', 'Radio power', base.DEC, RADIO_POWER)
+
+function request_radio_power.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add(request_radio_power.fields.power, values[1])
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
 -----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
-local rilproxy = Proto("rild", "RILd socket");
 local src_ip_addr_f = Field.new("ip.src")
 local dst_ip_addr_f = Field.new("ip.dst")
 
