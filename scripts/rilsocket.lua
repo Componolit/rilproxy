@@ -81,8 +81,8 @@ local request_radio_power = Proto("rild.request.radio_power", "REQUEST_RADIO_POW
 
 -- FIXME: 'on' actually means > 0
 RADIO_POWER = {
-    [0] = "off",
-    [1] = "on"
+    [0] = "OFF",
+    [1] = "ON"
 }
 
 request_radio_power.fields.power =
@@ -163,10 +163,9 @@ function query_dissector(name)
     name = name:lower()
     if all_dissectors[name] ~= nil
     then
-        print("Found dissector " .. name)
         dissector = Dissector.get(name)
     else
-        print("Not found dissector " .. name)
+        print("Missing dissector " .. name)
         dissector = Dissector.get("rild.content")
     end
 
