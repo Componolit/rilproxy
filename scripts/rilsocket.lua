@@ -6,6 +6,21 @@
 local ril_h = require 'ril_h'
 
 -----------------------------------------------------------------------------------------------------------------------
+-- Helper functions
+-----------------------------------------------------------------------------------------------------------------------
+function parse_int_list(buffer)
+    result = {}
+    assert(buffer:len() > 3)
+    local len = buffer:range(0,4):le_uint()
+    assert(4 * len + 4 <= buffer:len())
+    for i = 0, len - 1
+    do
+        table.insert(result, buffer:range(4*i, 4):le_uint())
+    end
+    return result
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- hexdump dissector
 -----------------------------------------------------------------------------------------------------------------------
 local rild_content = Proto("rild.content", "Hexdump content");
@@ -28,8 +43,8 @@ local unsol_ril_connected_error = ProtoExpert.new("rild.unsol.ril_connected.erro
 unsol_ril_connected.experts = { unsol_ril_connected_error }
 
 function unsol_ril_connected.dissector(buffer, info, tree)
-    local len = buffer:range(0,4):le_uint()
-    if len == 1
+    values = parse_int_list(buffer)
+    if #values == 1
     then
         tree:add_le(unsol_ril_connected.fields.version, buffer:range(4,4))
     else
