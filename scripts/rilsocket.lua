@@ -209,7 +209,7 @@ function rilproxy.dissector(buffer, info, tree)
         if (buffer_len > 12)
         then
             dissector = query_dissector("rild.request." .. REQUEST[rid])
-            dissector:call(buffer(12,-1):tvb(), info, subtree)
+            dissector:call(buffer(12, header_len - 12 + 4):tvb(), info, subtree)
         end
     elseif direction() == DIR_FROM_BP
     then
@@ -226,7 +226,7 @@ function rilproxy.dissector(buffer, info, tree)
             if (buffer_len > 16)
             then
                 dissector = query_dissector("rild.reply." .. ERROR[result])
-                dissector:call(buffer(16,-1):tvb(), info, subtree)
+                dissector:call(buffer(16, header_len - 16 + 4):tvb(), info, subtree)
             end
         elseif (mtype == MTYPE_UNSOL)
         then
@@ -239,7 +239,7 @@ function rilproxy.dissector(buffer, info, tree)
             if (buffer_len > 12)
             then
                 dissector = query_dissector("rild.unsol." .. UNSOL[event])
-                dissector:call(buffer(12,-1):tvb(), info, subtree)
+                dissector:call(buffer(12, header_len - 12 + 4):tvb(), info, subtree)
             end
         else
             info.cols.info:append("UNKNOWN REPLY")
