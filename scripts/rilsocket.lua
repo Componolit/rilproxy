@@ -229,6 +229,7 @@ function rilproxy.init()
     ap_ip = nil
     bp_ip = nil
     frames = {}
+    requests = {}
 
     for key,value in pairs(Dissector.list())
     do
@@ -330,7 +331,9 @@ function rilproxy.dissector(buffer, info, tree)
         subtree:add_le(rilproxy.fields.request, buffer(4,4))
         if (buffer_len > 8)
         then
-            frames[buffer(8,4):le_uint()] = info.number
+            token = buffer(8,4):le_uint()
+            frames[token] = info.number
+            requests[token] = rid
             subtree:add_le(rilproxy.fields.token, buffer(8,4))
         end
         if (buffer_len > 12)
@@ -344,14 +347,16 @@ function rilproxy.dissector(buffer, info, tree)
         if (mtype == MTYPE_REPLY)
         then
             local result = buffer(12,4):le_uint()
-            message = "REPLY(" .. maybe_unknown(RIL_E[result]) ..")"
+            local token = buffer(8,4):le_uint()
+            local rid = REQUEST[requests[token]]
+            message = "REPLY(" .. maybe_unknown(rid) ..") = " .. maybe_unknown(RIL_E[result])
             info.cols.info:append(message)
             subtree = add_default_fields(tree, message, buffer, header_len + 4)
             subtree:add_le(rilproxy.fields.mtype, buffer(4,4))
             subtree:add_le(rilproxy.fields.token, buffer(8,4))
-            if frames[buffer(8,4):le_uint()] ~= nil
+            if frames[token] ~= nil
             then
-                subtree:add(rilproxy.fields.reply, frames[buffer(8,4):le_uint()])
+                subtree:add(rilproxy.fields.reply, frames[token])
             end
             subtree:add_le(rilproxy.fields.result, buffer(12,4))
             if (buffer_len > 16)
