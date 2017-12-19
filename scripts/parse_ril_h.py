@@ -3,7 +3,7 @@
 import sys
 import re
 
-enums = ['RIL_E', 'RIL_CALL', 'RADIO_STATE', 'CDMA_SUBSCRIPTION']
+enums = ['RIL_E', 'RIL_CALL', 'RADIO_STATE', 'CDMA_SUBSCRIPTION', 'RADIO_TECH']
 tables = { 'REQUEST': {}, 'RESPONSE': {}, 'UNSOL': {}}
 
 def extract_enums(prefixes, tables, line):

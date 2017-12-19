@@ -148,6 +148,77 @@ function request_set_unsol_cell_info_list_rate.dissector(buffer, info, tree)
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
 end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(DATA_REGISTRATION_STATE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_data_registration_state = Proto("rild.reply.data_registration_state", "REPLY_DATA_REGISTRATION_STATE");
+
+-- FIXME: Current ril.h convert assumes common prefix which is not the case for the RIL_RegState.
+-- We need to implement proper enum parsing to get this automatically.
+
+NOT_REG_AND_NOT_SEARCHING = 0
+REG_HOME = 1
+NOT_REG_AND_SEARCHING = 2
+REG_DENIED = 3
+UNKNOWN = 4
+REG_ROAMING = 5
+NOT_REG_AND_EMERGENCY_AVAILABLE_AND_NOT_SEARCHING = 10
+NOT_REG_AND_EMERGENCY_AVAILABLE_AND_SEARCHING = 12
+REG_DENIED_AND_EMERGENCY_AVAILABLE = 13
+UNKNOWN_AND_EMERGENCY_AVAILABLE = 14
+
+REG_STATE = {
+    [NOT_REG_AND_NOT_SEARCHING] = "NOT_REG_AND_NOT_SEARCHING",
+    [REG_HOME] = "REG_HOME",
+    [NOT_REG_AND_SEARCHING] = "NOT_REG_AND_SEARCHING",
+    [REG_DENIED] = "REG_DENIED",
+    [UNKNOWN] = "UNKNOWN",
+    [REG_ROAMING] = "REG_ROAMING",
+    [NOT_REG_AND_EMERGENCY_AVAILABLE_AND_NOT_SEARCHING] = "NOT_REG_AND_EMERGENCY_AVAILABLE_AND_NOT_SEARCHING",
+    [NOT_REG_AND_EMERGENCY_AVAILABLE_AND_SEARCHING] = "NOT_REG_AND_EMERGENCY_AVAILABLE_AND_SEARCHING",
+    [REG_DENIED_AND_EMERGENCY_AVAILABLE] = "REG_DENIED_AND_EMERGENCY_AVAILABLE",
+    [UNKNOWN_AND_EMERGENCY_AVAILABLE] = "UNKNOWN_AND_EMERGENCY_AVAILABLE"
+}
+
+reply_data_registration_state.fields.regstate =
+    ProtoField.uint32('rild.reply.data_registration_state.regstate', 'Registration state', base.DEC, REG_STATE)
+
+reply_data_registration_state.fields.radiotechnology =
+    ProtoField.uint32('rild.reply.data_registration_state.radiotechnology', 'Radio technology', base.DEC, RADIO_TECH)
+
+DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED = 7
+DATA_DENIED_REASON_GPRS_SERVICE_AND_NON_GPRS_SERVICE_NOT_ALLOWED = 8
+DATA_DENIED_REASON_MS_IDENTITY_CANNOT_BE_DERIVED = 9
+DATA_DENIED_REASON_IMPLICITLY_DETACHED = 10
+DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED_IN_THIS_PLMN = 14
+DATA_DENIED_REASON_MSC_TEMPORARILY_NOT_REACHABLE = 16
+DATA_DENIED_REASON_NO_PDP_CONTEXT_ACTIVATED = 40
+
+DATA_DENIED_REASON = {
+    [DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED] = "GPRS services not allowed",
+    [DATA_DENIED_REASON_GPRS_SERVICE_AND_NON_GPRS_SERVICE_NOT_ALLOWED] = "GPRS services and non-GPRS services not allowed",
+    [DATA_DENIED_REASON_MS_IDENTITY_CANNOT_BE_DERIVED] = "MS identity cannot be derived by the network",
+    [DATA_DENIED_REASON_IMPLICITLY_DETACHED] = "Implicitly detached",
+    [DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED_IN_THIS_PLMN] = "GPRS services not allowed in this PLMN",
+    [DATA_DENIED_REASON_MSC_TEMPORARILY_NOT_REACHABLE] = "MSC temporarily not reachable",
+    [DATA_DENIED_REASON_NO_PDP_CONTEXT_ACTIVATED] = "No PDP context activated"
+}
+
+reply_data_registration_state.fields.reasondatadenied =
+    ProtoField.uint32('rild.reply.data_registration_state.reasondatadenied', 'Data-denied reason', base.DEC, DATA_DENIED_REASON)
+
+reply_data_registration_state.fields.maxdatacalls =
+    ProtoField.uint32('rild.reply.data_registration_state.maxdatacalls', 'Maximum data calls', base.DEC)
+
+function reply_data_registration_state.dissector(buffer, info, tree)
+    tree:add_le(reply_data_registration_state.fields.regstate, buffer:range(0,4))
+    tree:add_le(reply_data_registration_state.fields.radiotechnology, buffer:range(4,4))
+    tree:add_le(reply_data_registration_state.fields.reasondatadenied, buffer:range(8,4))
+    tree:add_le(reply_data_registration_state.fields.maxdatacalls, buffer:range(12,4))
+end
+
 -----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
@@ -348,8 +419,8 @@ function rilproxy.dissector(buffer, info, tree)
         then
             local result = buffer(12,4):le_uint()
             local token = buffer(8,4):le_uint()
-            local rid = REQUEST[requests[token]]
-            message = "REPLY(" .. maybe_unknown(rid) ..") = " .. maybe_unknown(RIL_E[result])
+            local rid = requests[token]
+            message = "REPLY(" .. maybe_unknown(REQUEST[rid]) ..") = " .. maybe_unknown(RIL_E[result])
             info.cols.info:append(message)
             subtree = add_default_fields(tree, message, buffer, header_len + 4)
             subtree:add_le(rilproxy.fields.mtype, buffer(4,4))
@@ -361,7 +432,7 @@ function rilproxy.dissector(buffer, info, tree)
             subtree:add_le(rilproxy.fields.result, buffer(12,4))
             if (buffer_len > 16)
             then
-                dissector = query_dissector("rild.reply." .. RIL_E[result])
+                dissector = query_dissector("rild.reply." .. maybe_unknown(REQUEST[rid]))
                 dissector:call(buffer(16, header_len - 16 + 4):tvb(), info, subtree)
             end
         elseif (mtype == MTYPE_UNSOL)
