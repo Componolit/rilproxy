@@ -48,8 +48,14 @@ trim_prefixes = {
     'GERANBANDS':                   'GERAN_BAND',
     'UTRANBANDS':                   'UTRAN_BAND',
     'EUTRANBANDS':                  'EUTRAN_BAND',
-    'KEEPALIVESTATUSCODE':          'KEEPALIVE'
+    'KEEPALIVESTATUSCODE':          'KEEPALIVE',
+    'REQUEST':                      'REQUEST',
+    'RESPONSE':                     'RESPONSE',
+    'UNSOL':                        'UNSOL'
 }
+
+# Defines to generate tables for
+generate_defines = ['REQUEST', 'RESPONSE', 'UNSOL']
 
 # Ignore enums in this list
 ignore_enums = ['SOCKET_ID']
@@ -150,9 +156,9 @@ def trim_prefix(value, prefix):
         return value[len(prefix):]
     return value
 
-def output_lua_table(tablename, data):
+def output_lua_table(fh, tablename, data):
 
-    print ("\n-- %s" % (tablename))
+    fh.write ("-- %s\n" % (tablename))
 
     if tablename in trim_prefixes:
         prefix = trim_prefixes[tablename]
@@ -160,26 +166,35 @@ def output_lua_table(tablename, data):
         prefix = ''
 
     # Write constants
-    for key in data:
+    for key in sorted(data):
         entryname = trim_prefix(data[key], prefix + '_')
-        print("%s_%s = 0x%4.4x" % (tablename, entryname, key))
+        fh.write("%s_%s = 0x%4.4x\n" % (tablename, entryname, key))
 
     # Write table for mapping strings to constants
-    print ("%s = {" % (tablename), end='')
+    fh.write("%s = {" % (tablename))
     for i, key in enumerate(sorted(data)):
         separator = "," if i > 0 else ""
         entryname = trim_prefix(data[key], prefix + '_')
-        print('%s\n    [%s_%s] = "%s"' % (separator, tablename, entryname, entryname), end='')
-    print ("\n}")
+        fh.write('%s\n    [%s_%s] = "%s"' % (separator, tablename, entryname, entryname))
+    fh.write("\n}\n")
 
 def output_lua(result, filename):
 
-    #with open(filename, 'rw') as f:
-    for (name, data) in result:
-        name = trim_prefix(name, 'RIL_')
-        if name in ignore_enums:
-            continue
-        output_lua_table(name.upper(), data)
+    with open(filename, 'w') as f:
+        # Output all enums
+        for (name, data) in result:
+            name = trim_prefix(name, 'RIL_')
+            if name in ignore_enums:
+                continue
+            output_lua_table(f, name.upper(), data)
+
+        for tablename in generate_defines:
+            table = {}
+            for define in defines:
+                name = trim_prefix(define, 'RIL_')
+                if name.startswith(tablename + '_'):
+                    table[int(defines[define])] = name
+            output_lua_table(f, tablename, table)
 
 def main():
 
