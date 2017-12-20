@@ -4,6 +4,9 @@ import re
 import argparse
 from pyparsing import *
 
+# Ignore enums in this list
+ignore_enums = ['SOCKET_ID']
+
 # Pre-init with external constants used in ril.h
 defines = {'INT32_MAX': 0xffffffff}
 
@@ -38,14 +41,17 @@ def parse_enum(s, loc, toks):
         else:
             value = i
             i += 1
-        result[value] = key
+        result[int(value)] = key
 
     return (toks[1], result)
 
 def parse_bitshift(s, loc, toks):
     return defines[toks[0]]
 
-def parse_ril(content):
+def parse_ril(filename):
+
+    with open(filename, 'r') as f:
+        content = "".join(f.readlines())
 
     definelist= re.findall('^#define\s+([^ ]+)\s+(.*)$', content, flags=re.MULTILINE)
     for (name, value) in definelist:
@@ -92,6 +98,31 @@ def parse_ril(content):
     result = enums.parseString(content)
     return result
 
+def output_lua_table(tablename, data):
+
+    print ("\n-- %s" % (tablename))
+
+    # Write constants
+    for key in data:
+        print("%s_%s = 0x%4.4x" % (tablename, data[key], key))
+
+    # Write table for mapping strings to constants
+    print ("%s = {" % (tablename), end='')
+    for i, key in enumerate(sorted(data)):
+        separator = "," if i > 0 else ""
+        print('%s\n    [%s_%s] = "%s"' % (separator, tablename, data[key], data[key]), end='')
+    print ("\n}")
+
+def output_lua(result, filename):
+
+    #with open(filename, 'rw') as f:
+    for (name, data) in result:
+        if name.startswith('RIL_'):
+            name = name[4:]
+        if name in ignore_enums:
+            continue
+        output_lua_table(name.upper(), data)
+
 def main():
 
     parser = argparse.ArgumentParser(description='Parse ril.h file.')
@@ -99,9 +130,8 @@ def main():
     parser.add_argument('ril_h', action='store', help='ril.h file to analyze')
     args = parser.parse_args()
 
-    with open(args.ril_h, 'r') as f:
-        content = "".join(f.readlines())
-        parse_ril(content)
+    data = parse_ril(args.ril_h)
+    output_lua(data, args.output)
 
 if __name__ == '__main__':
     main()
