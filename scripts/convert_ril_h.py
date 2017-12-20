@@ -181,6 +181,9 @@ def output_lua_table(fh, tablename, data):
 def output_lua(result, filename):
 
     with open(filename, 'w') as f:
+
+        f.write("RIL_VERSION = %s\n" % (defines['RIL_VERSION']))
+
         # Output all enums
         for (name, data) in result:
             name = trim_prefix(name, 'RIL_')
