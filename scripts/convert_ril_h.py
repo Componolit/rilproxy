@@ -4,6 +4,53 @@ import re
 import argparse
 from pyparsing import *
 
+# Tables defining prefices to be trimmed from enum table entries
+trim_prefixes = {
+    'ERRNO':                        'RIL_E',
+    'CALLSTATE':                    'RIL_CALL',
+    'RADIOSTATE':                   'RADIO_STATE',
+    'RADIOTECHNOLOGY':              'RADIO_TECH',
+    'RADIOACCCESSFAMILY':           'RAF',
+    'RADIOBANDMODE':                'BAND_MODE',
+    'RADIOCAPABILITYPHASE':         'RC_PHASE',
+    'RADIOCAPABILITYSTATUS':        'RC_STATUS',
+    'PREFERREDNETWORKTYPE':         'PREF_NET_TYPE',
+    'CDMASUBSCRIPTIONSOURCE':       'CDMA_SUBSCRIPTION_SOURCE',
+    'UUS_TYPE':                     'RIL_UUS',
+    'USS_DCS':                      'RIL_UUS_DCS',
+    'RADIOTECHNOLOGYFAMILY':        'RADIO_TECH',
+    'CARRIERMATCHTYPE':             'RIL_MATCH',
+    'LASTCALLFAILCAUSE':            'CALL_FAIL',
+    'DATACALLFAILCAUSE':            'PDP_FAIL',
+    'DATAPROFILE':                  'RIL_DATA_PROFILE',
+    'CARDSTATE':                    'RIL_CARDSTATE',
+    'PERSOSUBSTATE':                'RIL_PERSOSUBSTATE',
+    'APPSTATE':                     'RIL_APPSTATE',
+    'PINSTATE':                     'RIL_PINSTATE',
+    'APPTYPE':                      'RIL_APPTYPE',
+    'REGSTATE':                     'RIL',
+    'SIMREFRESHRESULT':             'SIM',
+    'CDMA_OTA_PROVISIONSTATUS':     'CDMA_OTA_PROVISION_STATUS',
+    'CELLINFOTYPE':                 'RIL_CELL_INFO_TYPE',
+    'TIMESTAMPTYPE':                'RIL_TIMESTAMP_TYPE',
+    'CDMA_INFORECNAME':             'RIL_CDMA',
+    'CDMA_REDIRECTINGREASON':       'RIL_REDIRECTING_REASON',
+    'HARDWARECONFIG_TYPE':          'RIL_HARDWARE_CONFIG',
+    'HARDWARECONFIG_STATE':         'RIL_HARDWARE_CONFIG',
+    'SSSERVICETYPE':                'SS',
+    'SSREQUESTTYPE':                'SS',
+    'SSTELESERVICETYPE':            'SS',
+    'DCPOWERSTATES':                'RIL_DC_POWER_STATE',
+    'APNTYPES':                     'RIL_APN_TYPE',
+    'DEVICESTATETYPE':              'RIL_DST',
+    'UNSOLICITEDRESPONSEFILTER':    'RIL_UR',
+    'SCANTYPE':                     'RIL',
+    'GERANBANDS':                   'GERAN_BAND',
+    'UTRANBANDS':                   'UTRAN_BAND',
+    'EUTRANBANDS':                  'EUTRAN_BAND',
+    'KEEPALIVESTATUSCODE':          'KEEPALIVE'
+}
+
 # Ignore enums in this list
 ignore_enums = ['SOCKET_ID']
 
@@ -98,27 +145,38 @@ def parse_ril(filename):
     result = enums.parseString(content)
     return result
 
+def trim_prefix(value, prefix):
+    if value.startswith(prefix):
+        return value[len(prefix):]
+    return value
+
 def output_lua_table(tablename, data):
 
     print ("\n-- %s" % (tablename))
 
+    if tablename in trim_prefixes:
+        prefix = trim_prefixes[tablename]
+    else:
+        prefix = ''
+
     # Write constants
     for key in data:
-        print("%s_%s = 0x%4.4x" % (tablename, data[key], key))
+        entryname = trim_prefix(data[key], prefix + '_')
+        print("%s_%s = 0x%4.4x" % (tablename, entryname, key))
 
     # Write table for mapping strings to constants
     print ("%s = {" % (tablename), end='')
     for i, key in enumerate(sorted(data)):
         separator = "," if i > 0 else ""
-        print('%s\n    [%s_%s] = "%s"' % (separator, tablename, data[key], data[key]), end='')
+        entryname = trim_prefix(data[key], prefix + '_')
+        print('%s\n    [%s_%s] = "%s"' % (separator, tablename, entryname, entryname), end='')
     print ("\n}")
 
 def output_lua(result, filename):
 
     #with open(filename, 'rw') as f:
     for (name, data) in result:
-        if name.startswith('RIL_'):
-            name = name[4:]
+        name = trim_prefix(name, 'RIL_')
         if name in ignore_enums:
             continue
         output_lua_table(name.upper(), data)
