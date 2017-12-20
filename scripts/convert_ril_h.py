@@ -1,6 +1,7 @@
 #!/usr/bin/env python3 
 import sys
 import re
+import argparse
 from pyparsing import *
 
 # Pre-init with external constants used in ril.h
@@ -91,6 +92,16 @@ def parse_ril(content):
     result = enums.parseString(content)
     return result
 
-with open(sys.argv[1], 'r') as f:
-    content = "".join(f.readlines())
-    parse_ril(content)
+def main():
+
+    parser = argparse.ArgumentParser(description='Parse ril.h file.')
+    parser.add_argument('--output', action='store', help='Output file name')
+    parser.add_argument('ril_h', action='store', help='ril.h file to analyze')
+    args = parser.parse_args()
+
+    with open(args.ril_h, 'r') as f:
+        content = "".join(f.readlines())
+        parse_ril(content)
+
+if __name__ == '__main__':
+    main()
