@@ -202,7 +202,7 @@ def output_lua(result, filename):
 def main():
 
     parser = argparse.ArgumentParser(description='Parse ril.h file.')
-    parser.add_argument('--output', action='store', help='Output file name')
+    parser.add_argument('--output', action='store', required=True, help='Output file name')
     parser.add_argument('ril_h', action='store', help='ril.h file to analyze')
     args = parser.parse_args()
 
