@@ -91,19 +91,19 @@ def parse_enum(s, loc, toks):
 
     # an enum must only have implicit values at the end
     for (key, value) in toks[0]:
-        if not value:
+        if value is None:
             none_vals += 1
         else:
-            if none_vals: raise Exception("Enum %s has explicit and implicit values" % toks[1])
+            if none_vals: raise Exception("Enum %s has explicit and implicit values (%s=%s, none_vals=%d)" % (toks[1], key, str(value), none_vals))
 
-    i = 0
+    prev = -1
     for (key, value) in toks[0]:
-        if none_vals and value:
-            i = int(value) + 1
+        if not value:
+            value = prev + 1
         else:
-            value = i
-            i += 1
-        result[int(value)] = key
+            prev = value
+
+        result[value] = key
 
     return (toks[1], result)
 
