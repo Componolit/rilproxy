@@ -5,6 +5,13 @@
 -- Place the resulting file as ril_h.lua into your plugin directory
 local ril_h = require 'ril_h'
 
+-- Inset custom rilproxy requests
+REQUEST_SETUP = 0xc715
+REQUEST[REQUEST_SETUP] = "SETUP"
+
+REQUEST_TEARDOWN = 0xc717
+REQUEST[REQUEST_TEARDOWN] = "TEARDOWN"
+
 local rilproxy = Proto("rild", "RILd socket");
 
 -- Register expert info fields
@@ -64,7 +71,7 @@ local unsol_response_radio_state_changed = Proto("rild.unsol.response_radio_stat
 -- However, older RIL.java sources mention that is "has bonus radio state int" which is casted into RadioState.
 -- Try to extract and convert this additional field.
 unsol_response_radio_state_changed.fields.version =
-    ProtoField.uint32('rild.unsol.response_radio_state_changed.state', 'Radio state', base.DEC, RADIO_STATE)
+    ProtoField.uint32('rild.unsol.response_radio_state_changed.state', 'Radio state', base.DEC, RADIOSTATE)
 
 function unsol_response_radio_state_changed.dissector(buffer, info, tree)
     if buffer:len() > 3
@@ -105,7 +112,7 @@ end
 local request_cdma_set_subscription_source = Proto("rild.request.cdma_set_subscription_source", "REQUEST_CDMA_SET_SUBSCRIPTION_SOURCE");
 
 request_cdma_set_subscription_source.fields.subscription =
-    ProtoField.uint32('rild.request.cdma_set_subscription_source.fields.subscription', 'Subscription source', base.DEC, CDMA_SUBSCRIPTION)
+    ProtoField.uint32('rild.request.cdma_set_subscription_source.fields.subscription', 'Subscription source', base.DEC, CDMASUBSCRIPTIONSOURCE)
 
 function request_cdma_set_subscription_source.dissector(buffer, info, tree)
     values = parse_int_list(buffer)
@@ -155,38 +162,11 @@ end
 
 local reply_data_registration_state = Proto("rild.reply.data_registration_state", "REPLY_DATA_REGISTRATION_STATE");
 
--- FIXME: Current ril.h convert assumes common prefix which is not the case for the RIL_RegState.
--- We need to implement proper enum parsing to get this automatically.
-
-NOT_REG_AND_NOT_SEARCHING = 0
-REG_HOME = 1
-NOT_REG_AND_SEARCHING = 2
-REG_DENIED = 3
-UNKNOWN = 4
-REG_ROAMING = 5
-NOT_REG_AND_EMERGENCY_AVAILABLE_AND_NOT_SEARCHING = 10
-NOT_REG_AND_EMERGENCY_AVAILABLE_AND_SEARCHING = 12
-REG_DENIED_AND_EMERGENCY_AVAILABLE = 13
-UNKNOWN_AND_EMERGENCY_AVAILABLE = 14
-
-REG_STATE = {
-    [NOT_REG_AND_NOT_SEARCHING] = "NOT_REG_AND_NOT_SEARCHING",
-    [REG_HOME] = "REG_HOME",
-    [NOT_REG_AND_SEARCHING] = "NOT_REG_AND_SEARCHING",
-    [REG_DENIED] = "REG_DENIED",
-    [UNKNOWN] = "UNKNOWN",
-    [REG_ROAMING] = "REG_ROAMING",
-    [NOT_REG_AND_EMERGENCY_AVAILABLE_AND_NOT_SEARCHING] = "NOT_REG_AND_EMERGENCY_AVAILABLE_AND_NOT_SEARCHING",
-    [NOT_REG_AND_EMERGENCY_AVAILABLE_AND_SEARCHING] = "NOT_REG_AND_EMERGENCY_AVAILABLE_AND_SEARCHING",
-    [REG_DENIED_AND_EMERGENCY_AVAILABLE] = "REG_DENIED_AND_EMERGENCY_AVAILABLE",
-    [UNKNOWN_AND_EMERGENCY_AVAILABLE] = "UNKNOWN_AND_EMERGENCY_AVAILABLE"
-}
-
 reply_data_registration_state.fields.regstate =
-    ProtoField.uint32('rild.reply.data_registration_state.regstate', 'Registration state', base.DEC, REG_STATE)
+    ProtoField.uint32('rild.reply.data_registration_state.regstate', 'Registration state', base.DEC, REGSTATE)
 
 reply_data_registration_state.fields.radiotechnology =
-    ProtoField.uint32('rild.reply.data_registration_state.radiotechnology', 'Radio technology', base.DEC, RADIO_TECH)
+    ProtoField.uint32('rild.reply.data_registration_state.radiotechnology', 'Radio technology', base.DEC, RADIOTECHNOLOGY)
 
 DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED = 7
 DATA_DENIED_REASON_GPRS_SERVICE_AND_NON_GPRS_SERVICE_NOT_ALLOWED = 8
@@ -248,7 +228,7 @@ rilproxy.fields.request = ProtoField.uint32('rilproxy.request', 'Request', base.
 rilproxy.fields.mtype   = ProtoField.uint32('rilproxy.mtype', 'Type', base.DEC, MTYPE)
 rilproxy.fields.token   = ProtoField.uint32('rilproxy.token', 'Token', base.HEX)
 rilproxy.fields.reply   = ProtoField.framenum('rilproxy.reply', 'In reply to frame', base.NONE, frametype.RESPONSE)
-rilproxy.fields.result  = ProtoField.uint32('rilproxy.result', 'Result', base.DEC, RIL_E)
+rilproxy.fields.result  = ProtoField.uint32('rilproxy.result', 'Result', base.DEC, ERRNO)
 rilproxy.fields.event   = ProtoField.uint32('rilproxy.event', 'Event', base.DEC, UNSOL)
 
 all_dissectors = {}
@@ -420,7 +400,7 @@ function rilproxy.dissector(buffer, info, tree)
             local result = buffer(12,4):le_uint()
             local token = buffer(8,4):le_uint()
             local rid = requests[token]
-            message = "REPLY(" .. maybe_unknown(REQUEST[rid]) ..") = " .. maybe_unknown(RIL_E[result])
+            message = "REPLY(" .. maybe_unknown(REQUEST[rid]) ..") = " .. maybe_unknown(ERRNO[result])
             info.cols.info:append(message)
             subtree = add_default_fields(tree, message, buffer, header_len + 4)
             subtree:add_le(rilproxy.fields.mtype, buffer(4,4))
