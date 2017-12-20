@@ -10,7 +10,7 @@ trim_prefixes = {
     'CALLSTATE':                    'RIL_CALL',
     'RADIOSTATE':                   'RADIO_STATE',
     'RADIOTECHNOLOGY':              'RADIO_TECH',
-    'RADIOACCCESSFAMILY':           'RAF',
+    'RADIOACCESSFAMILY':            'RAF',
     'RADIOBANDMODE':                'BAND_MODE',
     'RADIOCAPABILITYPHASE':         'RC_PHASE',
     'RADIOCAPABILITYSTATUS':        'RC_STATUS',
