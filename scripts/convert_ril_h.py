@@ -76,6 +76,15 @@ def parse_enumspec(s, loc, toks):
 def parse_define(s, loc, toks):
     return defines[toks[0]]
 
+def parse_positive(s, loc, toks):
+    return int(toks[0], 10)
+
+def parse_negative(s, loc, toks):
+    return -toks[0]
+
+def parse_hexdecimal(s, loc, toks):
+    return int(toks[0], 0)
+
 def parse_enum(s, loc, toks):
     result = {}
     none_vals = 0
@@ -122,21 +131,27 @@ def parse_ril(filename):
     kw_enum     = Literal("enum")
     kw_typedef  = Literal("typedef")
     
-    name        = Word(alphanums + "_")
-    
-    decimal     = Regex("\d+")
-    hexadecimal = Combine (Literal("0x") + Regex("[0-9a-fA-F]+"))
-    number      = hexadecimal|(Optional(Literal("-")) + decimal)
     terminator  = Literal(";")
     equal       = Literal("=")
     
+    name        = Word(alphanums + "_")
+
+    positive    = Regex("\d+")
+    positive.setParseAction(parse_positive)
+
+    negative    = Suppress(Literal("-")) + positive
+    negative.setParseAction(parse_negative)
+
+    hexadecimal = Combine (Literal("0x") + Regex("[0-9a-fA-F]+"))
+    hexadecimal.setParseAction(parse_hexdecimal)
+
     bitshift    = Suppress(Literal("(")) + Suppress(Literal("1")) + Suppress(Literal("<<")) + name + Suppress(Literal(")"))
     bitshift.setParseAction(parse_bitshift)
 
     define = Word(alphanums + "_")
     define.setParseAction(parse_define)
 
-    value  = (number|bitshift|define)
+    value  = (hexadecimal|negative|positive|bitshift|define)
     
     typename    = name
     enumspec    = typename + Optional(Suppress(equal) + value)
@@ -168,7 +183,9 @@ def output_lua_table(fh, tablename, data):
     # Write constants
     for key in sorted(data):
         entryname = trim_prefix(data[key], prefix + '_')
-        fh.write("%s_%s = 0x%4.4x\n" % (tablename, entryname, key))
+        # Use decimal for negative numbers
+        fmt = "%d" if key < 0 else "0x%4.4x"
+        fh.write(("%s_%s = " + fmt + "\n") % (tablename, entryname, key))
 
     # Write table for mapping strings to constants
     fh.write("%s = {" % (tablename))
