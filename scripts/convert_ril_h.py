@@ -99,7 +99,7 @@ def parse_enum(s, loc, toks):
     return (toks[1], result)
 
 def parse_bitshift(s, loc, toks):
-    return defines[toks[0]]
+    return (1 << int(defines[toks[0]]))
 
 def parse_ril(filename):
 
