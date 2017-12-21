@@ -110,6 +110,30 @@ function request_radio_power.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(SCREEN_STATE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_screen_state = Proto("rild.request.screen_state", "REQUEST_SCREEN_STATE");
+
+SCREEN_STATE = {
+    [0] = "OFF",
+    [1] = "ON"
+}
+
+request_screen_state.fields.screenstate =
+    ProtoField.uint32('rild.request.screen_state.screenstate', 'Screen state', base.DEC, SCREEN_STATE)
+
+function request_screen_state.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add_le(request_screen_state.fields.screenstate, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(CDMA_SET_SUBSCRIPTION_SOURCE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
