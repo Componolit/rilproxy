@@ -204,6 +204,30 @@ function reply_data_registration_state.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(QUERY_NETWORK_SELECTION_MODE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_query_network_selection_mode = Proto("rild.reply.query_network_selection_mode", "QUERY_NETWORK_SELECTION_MODE");
+
+SELECTION_AUTOMATIC = 0
+SELECTION_MANUAL = 1
+SELECTION = {
+    [SELECTION_AUTOMATIC] = "AUTOMATIC",
+    [SELECTION_MANUAL] = "MANUAL"
+}
+
+reply_query_network_selection_mode.fields.selection =
+    ProtoField.uint32('rild.reply.reply_query_network_selection_mode.selection', 'Selection mode', base.DEC, SELECTION)
+
+function reply_query_network_selection_mode.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add_le(reply_query_network_selection_mode.fields.selection, buffer:range(4,4))
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
