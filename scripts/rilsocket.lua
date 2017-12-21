@@ -33,6 +33,19 @@ function parse_int_list(buffer)
     return result
 end
 
+function parse_string(buffer)
+    local result = ""
+    assert(buffer:len() > 3)
+    local len = buffer:range(0,4):le_uint()
+    assert(2 * len + 4 <= buffer:len(), "len=" .. len)
+    for i=4,2*len+2,2
+    do
+        result = result .. string.char(buffer:range(i,2):le_uint())
+    end
+
+    return len, result
+end
+
 -----------------------------------------------------------------------------------------------------------------------
 -- hexdump dissector
 -----------------------------------------------------------------------------------------------------------------------
@@ -251,6 +264,25 @@ function reply_query_network_selection_mode.dissector(buffer, info, tree)
     else
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(BASEBAND_VERSION) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_baseband_version = Proto("rild.reply.baseband_version", "BASEBAND_VERSION");
+
+reply_baseband_version.fields.version_len =
+    ProtoField.uint32('rild.reply.reply_baseband_version.version_len', 'Length', base.DEC)
+
+reply_baseband_version.fields.version =
+    ProtoField.string('rild.reply.reply_baseband_version.version', 'Version', base.STRING)
+
+function reply_baseband_version.dissector(buffer, info, tree)
+    local subtree = tree:add(reply_baseband_version, buffer:range(0, -1), "Baseband version")
+    len, string = parse_string(buffer)
+    subtree:add(reply_baseband_version.fields.version_len, buffer:range(0, 4), len)
+    subtree:add(reply_baseband_version.fields.version, buffer:range(4, 2*len+2), string)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
