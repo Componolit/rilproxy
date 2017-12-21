@@ -41,7 +41,11 @@ local rild_content = Proto("rild.content", "Hexdump content");
 rild_content.fields.content = ProtoField.bytes("rild.hexdump", "Hexdump", base.HEX)
 
 function rild_content.dissector(buffer, info, tree)
-    tree:add(rild_content.fields.content, buffer:range(0,-1))
+    if buffer:len() > 0
+    then
+        tree:add(rild_content.fields.content, buffer:range(0,-1))
+        info.cols.info:append(" *** ")
+    end
 end
 
 -----------------------------------------------------------------------------------------------------------------------
