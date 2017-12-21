@@ -485,14 +485,14 @@ function rilproxy.dissector(buffer, info, tree)
         info.cols.info:append(message)
         subtree = add_default_fields(tree, message, buffer, header_len + 4)
         subtree:add_le(rilproxy.fields.request, buffer(4,4))
-        if (buffer_len > 8)
+        if (header_len > 4)
         then
             token = buffer(8,4):le_uint()
             frames[token] = info.number
             requests[token] = rid
             subtree:add_le(rilproxy.fields.token, buffer(8,4))
         end
-        if (buffer_len > 12)
+        if (header_len > 8)
         then
             dissector = query_dissector("rild.request." .. REQUEST[rid])
             dissector:call(buffer(12, header_len - 12 + 4):tvb(), info, subtree)
@@ -515,7 +515,7 @@ function rilproxy.dissector(buffer, info, tree)
                 subtree:add(rilproxy.fields.reply, frames[token])
             end
             subtree:add_le(rilproxy.fields.result, buffer(12,4))
-            if (buffer_len > 16)
+            if (header_len > 12)
             then
                 dissector = query_dissector("rild.reply." .. maybe_unknown(REQUEST[rid]))
                 dissector:call(buffer(16, header_len - 16 + 4):tvb(), info, subtree)
@@ -528,7 +528,7 @@ function rilproxy.dissector(buffer, info, tree)
             subtree = add_default_fields(tree, message, buffer, header_len + 4)
             subtree:add_le(rilproxy.fields.mtype, buffer(4,4))
             subtree:add_le(rilproxy.fields.event, buffer(8,4))
-            if (buffer_len > 12)
+            if (header_len > 8)
             then
                 dissector = query_dissector("rild.unsol." .. UNSOL[event])
                 dissector:call(buffer(12, header_len - 12 + 4):tvb(), info, subtree)
