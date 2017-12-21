@@ -276,13 +276,32 @@ reply_baseband_version.fields.version_len =
     ProtoField.uint32('rild.reply.reply_baseband_version.version_len', 'Length', base.DEC)
 
 reply_baseband_version.fields.version =
-    ProtoField.string('rild.reply.reply_baseband_version.version', 'Version', base.STRING)
+    ProtoField.string('rild.reply.reply_baseband_version.version', 'Value', base.STRING)
 
 function reply_baseband_version.dissector(buffer, info, tree)
     local subtree = tree:add(reply_baseband_version, buffer:range(0, -1), "Baseband version")
     len, string = parse_string(buffer)
     subtree:add(reply_baseband_version.fields.version_len, buffer:range(0, 4), len)
     subtree:add(reply_baseband_version.fields.version, buffer:range(4, 2*len+2), string)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(GET_IMEI) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_get_imei = Proto("rild.reply.get_imei", "GET_IMEI");
+
+reply_get_imei.fields.imei_len =
+    ProtoField.uint32('rild.reply.reply_get_imei.imei_len', 'Length', base.DEC)
+
+reply_get_imei.fields.imei =
+    ProtoField.string('rild.reply.reply_get_imei.imei', 'Value', base.STRING)
+
+function reply_get_imei.dissector(buffer, info, tree)
+    local subtree = tree:add(reply_get_imei, buffer:range(0, -1), "IMEI")
+    len, string = parse_string(buffer)
+    subtree:add(reply_get_imei.fields.imei_len, buffer:range(0, 4), len)
+    subtree:add(reply_get_imei.fields.imei, buffer:range(4, 2*len+2), string)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
