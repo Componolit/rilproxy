@@ -248,6 +248,8 @@ function reply_query_network_selection_mode.dissector(buffer, info, tree)
     if #values == 1
     then
         tree:add_le(reply_query_network_selection_mode.fields.selection, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
 end
 
