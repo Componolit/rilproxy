@@ -480,6 +480,33 @@ function reply_get_imei.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(START_LCE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_start_lce = Proto("rild.reply.start_lce", "START_LCE");
+
+LCE_STATUS_INFO_NOT_SUPPORTED = 255
+LCE_STATUS_INFO_STOPPED = 0
+LCE_STATUS_INFO_ACTIVE = 1
+
+LCE_STATUS_INFO = {
+    [LCE_STATUS_INFO_NOT_SUPPORTED] = "NOT SUPPORTED",
+    [LCE_STATUS_INFO_STOPPED] = "STOPPED",
+    [LCE_STATUS_INFO_ACTIVE] = "ACTIVE"
+}
+
+reply_start_lce.fields.status=
+    ProtoField.uint32('rild.reply.start_lce.status', 'Status', base.DEC, LCE_STATUS_INFO)
+
+reply_start_lce.fields.interval =
+    ProtoField.uint32('rild.reply.start_lce.interval', 'Actual interval [ms]', base.DEC)
+
+function reply_start_lce.dissector(buffer, info, tree)
+    tree:add_le(reply_start_lce.fields.status, buffer:range(0, 4))
+    tree:add_le(reply_start_lce.fields.interval, buffer:range(4, 4))
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
