@@ -480,6 +480,25 @@ function reply_get_imei.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(GET_IMEISV) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_get_imeisv = Proto("rild.reply.get_imeisv", "GET_IMEISV");
+
+reply_get_imeisv.fields.imei_len =
+    ProtoField.uint32('rild.reply.reply_get_imeisv.imei_len', 'Length', base.DEC)
+
+reply_get_imeisv.fields.imei =
+    ProtoField.string('rild.reply.reply_get_imeisv.imei', 'Value', base.STRING)
+
+function reply_get_imeisv.dissector(buffer, info, tree)
+    local subtree = tree:add(reply_get_imeisv, buffer:range(0, -1), "IMEISV")
+    len, string = parse_string(buffer)
+    subtree:add(reply_get_imeisv.fields.imei_len, buffer:range(0, 4), len)
+    subtree:add(reply_get_imeisv.fields.imei, buffer:range(4, 2*len+2), string)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REPLY(START_LCE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
