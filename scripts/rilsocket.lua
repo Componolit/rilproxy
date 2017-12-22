@@ -531,7 +531,7 @@ DirectionLabel = {
 }
 
 rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
-rilproxy.fields.request = ProtoField.uint32('rilproxy.request', 'Request', base.HEX, REQUEST)
+rilproxy.fields.request = ProtoField.uint32('rilproxy.request', 'Request', base.DEC, REQUEST)
 rilproxy.fields.mtype   = ProtoField.uint32('rilproxy.mtype', 'Type', base.DEC, MTYPE)
 rilproxy.fields.token   = ProtoField.uint32('rilproxy.token', 'Token', base.HEX)
 rilproxy.fields.reply   = ProtoField.framenum('rilproxy.reply', 'In reply to frame', base.NONE, frametype.RESPONSE)
