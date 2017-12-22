@@ -342,6 +342,37 @@ function request_set_unsol_cell_info_list_rate.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(START_LCE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_start_lce = Proto("rild.request.start_lce", "REQUEST_START_LCE");
+
+request_start_lce.fields.reportinginterval =
+    ProtoField.uint32('rild.request.start_lce.fields.reportinginterval', 'Reporting interval [ms]', base.DEC)
+
+LCE_SERVICE_MODE_PUSH = 0
+LCE_SERVICE_MODE_PULL = 1
+
+LCE_SERVICE_MODE = {
+    [LCE_SERVICE_MODE_PUSH] = "PUSH",
+    [LCE_SERVICE_MODE_PULL] = "PULL"
+}
+
+request_start_lce.fields.servicemode =
+    ProtoField.uint32('rild.request.start_lce.fields.servicemode', 'Service mode', base.DEC, LCE_SERVICE_MODE)
+
+function request_start_lce.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 2
+    then
+        tree:add(request_start_lce.fields.reportinginterval, buffer:range(4,4), values[1])
+        tree:add(request_start_lce.fields.servicemode, buffer:range(8,4), values[2])
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 2 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REPLY(DATA_REGISTRATION_STATE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
