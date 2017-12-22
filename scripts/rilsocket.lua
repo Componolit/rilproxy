@@ -46,6 +46,28 @@ function parse_string(buffer)
     return len, result
 end
 
+-- Add an little-endian integer from 'buffer' to a 'field' in 'tree'.
+-- The value is addeded only if it is within first..last and does
+-- not equal 'invalid'. Otherwise the strings 'INVALID' or 'OUT OF BOUNDS'
+-- are added respectively.
+function add_le_with_domain(tree, field, buffer, first, last, invalid)
+    value = buffer:le_int()
+
+    if value == invalid
+    then
+        tree:add(field, buffer, "INVALID (" .. tostring(value) .. ")")
+        return
+    end
+
+    if value < first or value > last
+    then
+        tree:add(field, buffer, "OUT OF BOUNDS (" .. tostring(value) .. ")")
+        return
+    end
+
+    tree:add(field, buffer, tostring(value))
+end
+
 -----------------------------------------------------------------------------------------------------------------------
 -- hexdump dissector
 -----------------------------------------------------------------------------------------------------------------------
@@ -94,6 +116,128 @@ function unsol_response_radio_state_changed.dissector(buffer, info, tree)
     if buffer:len() > 3
     then
         tree:add_le(unsol_response_radio_state_changed.fields.version, buffer:range(0,4))
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(SIGNAL_STRENGTH) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local gw_signal_strength = Proto("rild.gw_signal_strength", "GW SignalStrength");
+
+gw_signal_strength.fields.signalstrength =
+    ProtoField.string('rild.gw_signal_strength.signalstrength', 'Signal strength', base.DEC)
+
+gw_signal_strength.fields.biterrorrate =
+    ProtoField.string('rild.gw_signal_strength.biterrorrate', 'Bit error rate', base.DEC)
+
+function gw_signal_strength.dissector(buffer, info, tree)
+    add_le_with_domain(tree, gw_signal_strength.fields.signalstrength, buffer:range(0,4), 0, 31, 99)
+    add_le_with_domain(tree, gw_signal_strength.fields.biterrorrate, buffer:range(4,4), 0, 7, 99)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+
+local cdma_signal_strength = Proto("rild.cdma_signal_strength", "CDMA SignalStrength");
+
+cdma_signal_strength.fields.dbm =
+    ProtoField.string('rild.cdma_signal_strength.dbm', 'RSSI', base.DEC)
+
+cdma_signal_strength.fields.ecio =
+    ProtoField.string('rild.cdma_signal_strength.ecio', 'Ec/Io', base.DEC)
+
+function cdma_signal_strength.dissector(buffer, info, tree)
+    add_le_with_domain(tree, cdma_signal_strength.fields.dbm, buffer:range(0,4), 0, 0xfffffffe, 0xffffffff)
+    add_le_with_domain(tree, cdma_signal_strength.fields.ecio, buffer:range(4,4), 0, 0xfffffffe, 0xffffffff)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+
+local evdo_signal_strength = Proto("rild.evdo_signal_strength", "EVDO SignalStrength");
+
+evdo_signal_strength.fields.signalnoiseratio =
+    ProtoField.string('rild.evdo_signal_strength.signalnoiseratio', 'SNI', base.DEC)
+
+function evdo_signal_strength.dissector(buffer, info, tree)
+    cdma_signal_strength.dissector:call(buffer(0,8):tvb(), info, tree)
+    add_le_with_domain(tree, evdo_signal_strength.fields.signalnoiseratio, buffer:range(8,4), 0, 8, 0xffffffff)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+
+local lte_signal_strength = Proto("rild.lte_signal_strength", "LTE SignalStrength");
+
+lte_signal_strength.fields.signalstrength =
+    ProtoField.string('rild.lte_signal_strength.signalstrength', 'Signal strength', base.DEC)
+lte_signal_strength.fields.rsrp =
+    ProtoField.string('rild.lte_signal_strength.rsrp', 'RSRP', base.DEC)
+lte_signal_strength.fields.rsrq =
+    ProtoField.string('rild.lte_signal_strength.rsrq', 'RSRQ', base.DEC)
+lte_signal_strength.fields.rssnr =
+    ProtoField.string('rild.lte_signal_strength.rssnr', 'RSSNR', base.DEC)
+lte_signal_strength.fields.cqi =
+    ProtoField.string('rild.lte_signal_strength.cqi', 'CQI', base.DEC)
+lte_signal_strength.fields.timingadvance =
+    ProtoField.string('rild.lte_signal_strength.timingadvance', 'Timing advance', base.DEC)
+
+function lte_signal_strength.dissector(buffer, info, tree)
+    add_le_with_domain(tree, lte_signal_strength.fields.rsrp, buffer:range(0,4), 0, 31, 99)
+    add_le_with_domain(tree, lte_signal_strength.fields.rsrp, buffer:range(4,4), 44, 140, 0x7fffffff)
+    add_le_with_domain(tree, lte_signal_strength.fields.rsrq, buffer:range(8,4), 3, 20, 0x7fffffff)
+    add_le_with_domain(tree, lte_signal_strength.fields.rssnr, buffer:range(12,4), -200, 300, 0x7fffffff)
+    add_le_with_domain(tree, lte_signal_strength.fields.cqi, buffer:range(16,4), 0, 15, 0x7fffffff)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+
+local unsol_signal_strength = Proto("rild.unsol.signal_strength", "SIGNAL_STRENGTH");
+
+--
+-- There are multiple version of RIL_SignalStrength_v?? type. We can distinguish
+-- them by their size:
+--
+-- RIL_SignalStrength_v5:  28
+-- RIL_SignalStrength_v6:  48
+-- RIL_SignalStrength_v8:  52
+-- RIL_SignalStrength_v10: 56
+--
+
+unsol_signal_strength.fields.version =
+    ProtoField.uint32('rild.unsol.signal_strength.state', 'Radio state', base.DEC, RADIOSTATE)
+
+unsol_signal_strength.fields.timingadvance =
+    ProtoField.string('rild.unsol.signal_strength.timingadvance', 'Timing advance')
+
+unsol_signal_strength.fields.rscp =
+    ProtoField.uint32('rild.unsol.signal_strength.rscp', 'Received signal code power', base.DEC)
+
+function unsol_signal_strength.dissector(buffer, info, tree)
+    if buffer:len() < 28
+    then
+        return
+    end
+
+    local gw_subtree = tree:add(gw_signal_strength, buffer(0,8))
+    gw_signal_strength.dissector:call(buffer(0,8):tvb(), info, gw_subtree)
+    local cdma_subtree = tree:add(cdma_signal_strength, buffer(8,8))
+    cdma_signal_strength.dissector:call(buffer(8,8):tvb(), info, cdma_subtree)
+    local evdo_subtree = tree:add(evdo_signal_strength, buffer(16,12))
+    evdo_signal_strength.dissector:call(buffer(16,12):tvb(), info, evdo_subtree)
+
+    if buffer:len() > 28
+    then
+        local lte_subtree = tree:add(lte_signal_strength, buffer(28,20))
+        lte_signal_strength.dissector:call(buffer(28,20):tvb(), info, lte_subtree)
+
+        if buffer:len() > 48
+        then
+            add_le_with_domain(lte_subtree, unsol_signal_strength.fields.timingadvance, buffer:range(48,4), 0, 0x7ffffffe, 0x7fffffff)
+
+            if buffer:len() > 52
+            then
+                add_le_with_domain(lte_subtree, unsol_signal_strength.fields.rscp, buffer:range(52,4), 25, 120, 0x7fffffff)
+            end
+        end
     end
 end
 
