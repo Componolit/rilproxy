@@ -13,6 +13,7 @@ REQUEST_TEARDOWN = 0xc717
 REQUEST[REQUEST_TEARDOWN] = "TEARDOWN"
 
 local rilproxy = Proto("rild", "RILd socket");
+local ril_log = ''
 
 -- Register expert info fields
 local rild_error = ProtoExpert.new("rild.error", "Error decoding RIL message", expert.group.MALFORMED, expert.severity.ERROR)
@@ -66,6 +67,10 @@ function add_le_with_domain(tree, field, buffer, first, last, invalid)
     end
 
     tree:add(field, buffer, tostring(value))
+end
+
+function log(message)
+    ril_log = ril_log .. message .. "<br>"
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -592,11 +597,49 @@ function query_dissector(name)
     then
         dissector = Dissector.get(name)
     else
-        print("Missing dissector " .. name)
+        if missing_dissectors[name]
+        then
+            missing_dissectors[name] = missing_dissectors[name] + 1
+        else
+            missing_dissectors[name] = 1
+        end
         dissector = Dissector.get("rild.content")
     end
 
     return dissector
+end
+
+function ril_stats_menu()
+    local ril_stat_window = TextWindow.new("RIL statistics");
+    local text = ''
+
+    text = text .. '<h1>Statistics</h1>'
+
+    text = text .. '<h2>Logs</h2>'
+
+    text = text .. ril_log
+
+    local missing_total = 0
+    local missing_unique = 0
+    for name, value in pairs(missing_dissectors)
+    do
+        missing_unique = missing_unique + 1
+        missing_total = missing_total + value
+    end
+
+    text = text .. '<h2>Missing dissectors</h2>'
+    text = text .. missing_unique .. ' unique dissectors missing from ' .. missing_total .. ' packets.'
+    text = text .. '<table style="width:100%"><tr>'
+    text = text .. '<tr><th>Count</th><th>Dissector</th></tr>'
+
+    for name, value in pairs(missing_dissectors)
+    do
+        text = text .. '<tr><td>' .. string.format('%3.3d', value) .. '</td><td>' .. name .. '</td></tr>'
+    end
+
+    text = text .. '</table>'
+
+    ril_stat_window:set(text)
 end
 
 function rilproxy.init()
@@ -607,11 +650,14 @@ function rilproxy.init()
     bp_ip = nil
     frames = {}
     requests = {}
+    missing_dissectors = {}
 
     for key,value in pairs(Dissector.list())
     do
         all_dissectors[value] = key
     end
+
+    log("Started")
 end
 
 function add_default_fields(tree, message, buffer, length)
@@ -629,7 +675,7 @@ function rilproxy.dissector(buffer, info, tree)
 
         if buffer:len() > bytesMissing
         then
-            print("Follow-up message longer (" .. buffer:len() .. ") than missing bytes (" .. bytesMissing .. "), ignoring")
+            log("[" .. info.number .. "] Follow-up message longer (" .. buffer:len() .. ") than missing bytes (" .. bytesMissing .. "), ignoring")
             bytesMissing = 0
             cache = ByteArray.new()
             return
@@ -652,21 +698,21 @@ function rilproxy.dissector(buffer, info, tree)
 
     -- Message must be at least 4 bytes
     if buffer_len < 4 then
-        print("Dropping short buffer of len " .. buffer_len)
+        log("[" .. info.number .. "] Dropping short buffer of len " .. buffer_len)
         return
     end
 
     local header_len = buffer:range(0,4):uint()
 
     if header_len < 4 then
-        print("Dropping short header len of " .. header_len)
+        log("[" .. info.number .. "] Dropping short header len of " .. header_len)
         return
     end
 
     --  FIXME: Upper limit?
     if header_len > 1492
     then
-        print("Skipping long buffer of length " .. header_len)
+        log("[" .. info.number .. "] Skipping long buffer of length " .. header_len)
         bytesMissing = 0
         cache = ByteArray.new()
         return
@@ -774,3 +820,7 @@ end
 
 local udp_port_table = DissectorTable.get("udp.port")
 udp_port_table:add(18912, rilproxy.dissector)
+
+if gui_enabled() then
+    register_menu("RIL socket statistics", ril_stats_menu, MENU_STAT_TELEPHONY)
+end
