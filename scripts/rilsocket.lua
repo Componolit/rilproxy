@@ -531,6 +531,25 @@ function reply_start_lce.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(VOICE_RADIO_TECH) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_voice_radio_tech = Proto("rild.reply.voice_radio_tech", "VOICE_RADIO_TECH");
+
+reply_voice_radio_tech.fields.radiotechnology =
+    ProtoField.uint32('rild.reply.reply_voice_radio_tech.radiotechnology', 'Radio technology', base.DEC, RADIOTECHNOLOGY)
+
+function reply_voice_radio_tech.dissector(buffer, info, tree)
+    values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add_le(reply_voice_radio_tech.fields.radiotechnology, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
