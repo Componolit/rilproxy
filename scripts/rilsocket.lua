@@ -296,6 +296,36 @@ function request_screen_state.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(SIM_OPEN_CHANNEL) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_sim_open_channel = Proto("rild.request.sim_open_channel", "REQUEST_SIM_OPEN_CHANNEL");
+
+request_sim_open_channel.fields.aid_len =
+    ProtoField.uint32('rild.request.sim_open_channel.aid_len', 'Length', base.DEC)
+
+request_sim_open_channel.fields.aid =
+    ProtoField.string('rild.request.sim_open_channel.aid', 'Value', base.STRING)
+
+function request_sim_open_channel.dissector(buffer, info, tree)
+    len, value = parse_string(buffer)
+
+    --  Values according to https://source.android.com/devices/tech/config/uicc
+    if value == "A00000015141434C00"
+    then
+        text = "Access Rule Applet ("
+    elseif value == "A000000063504B43532D3135"
+    then
+        text = "PKCS15 ("
+    else
+        text = "INVALID ("
+    end
+    text = text .. value .. ")"
+
+    subtree:add(request_sim_open_channel.fields.aid, buffer(4, 2*len), text)
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(CDMA_SET_SUBSCRIPTION_SOURCE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
