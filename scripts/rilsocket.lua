@@ -64,6 +64,17 @@ function parse_string(buffer)
     return string_len, result
 end
 
+function parse_bytes(buffer)
+
+    assert(buffer:len() > 3)
+    local len = buffer:range(0,4):le_uint()
+    assert(len <= buffer:len(), "len=" .. buffer:len() .. ", expectd >= " .. len)
+
+    local padded_len = 4 * math.floor((len + 3) / 4) + 4
+
+    return padded_len, buffer:range(4,len)
+end
+
 -- Add an little-endian integer from 'buffer' to a 'field' in 'tree'.
 -- The value is addeded only if it is within first..last and does
 -- not equal 'invalid'. Otherwise the strings 'INVALID' or 'OUT OF BOUNDS'
@@ -120,6 +131,20 @@ function unsol_ril_connected.dissector(buffer, info, tree)
     else
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(OEM_HOOK_RAW) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local unsol_oem_hook_raw = Proto("rild.unsol.oem_hook_raw", "OEM_HOOK_RAW");
+
+unsol_oem_hook_raw.fields.data =
+    ProtoField.bytes('rild.unsol.oem_hook_raw.data', 'Data', base.HEX)
+
+function unsol_oem_hook_raw.dissector(buffer, info, tree)
+    len, data = parse_bytes(buffer)
+    tree:add(unsol_oem_hook_raw.fields.data, buffer:range(0,len))
 end
 
 -----------------------------------------------------------------------------------------------------------------------
