@@ -426,6 +426,86 @@ function request_start_lce.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(SIM_IO) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_sim_io = Proto("rild.request.sim_io", "REQUEST_SIM_IO");
+
+CRSMCOMMAND_READ_BINARY = 176
+CRSMCOMMAND_READ_RECORD = 178
+CRSMCOMMAND_GET_RESPONSE = 192
+CRSMCOMMAND_UPDATE_BINARY = 214
+CRSMCOMMAND_UPDATE_RECORD = 220
+CRSMCOMMAND_STATUS = 242
+CRSMCOMMAND_RETRIEVE_DATA = 203
+CRSMCOMMAND_SET_DATA = 219
+
+CRSMCOMMAND = {
+    [CRSMCOMMAND_READ_BINARY]   = "READ_BINARY",
+    [CRSMCOMMAND_READ_RECORD]   = "READ_RECORD",
+    [CRSMCOMMAND_GET_RESPONSE]  = "GET_RESPONSE",
+    [CRSMCOMMAND_UPDATE_BINARY] = "UPDATE_BINARY",
+    [CRSMCOMMAND_UPDATE_RECORD] = "UPDATE_RECORD",
+    [CRSMCOMMAND_STATUS]        = "STATUS",
+    [CRSMCOMMAND_RETRIEVE_DATA] = "RETRIEVE_DATA",
+    [CRSMCOMMAND_SET_DATA]      = "SET_DATA"
+}
+
+request_sim_io.fields.command =
+    ProtoField.uint32('rild.request.sim_io.fields.command', 'Command', base.DEC, CRSMCOMMAND)
+
+request_sim_io.fields.fileid =
+    ProtoField.uint32('rild.request.sim_io.fields.file_id', 'File ID', base.HEX)
+
+request_sim_io.fields.path =
+    ProtoField.string('rild.request.sim_io.fields.path', 'Path', base.STRING)
+
+request_sim_io.fields.p1 =
+    ProtoField.uint32('rild.request.sim_io.fields.p1', 'P1', base.HEX)
+
+request_sim_io.fields.p2 =
+    ProtoField.uint32('rild.request.sim_io.fields.p2', 'P2', base.HEX)
+
+request_sim_io.fields.p3 =
+    ProtoField.uint32('rild.request.sim_io.fields.p3', 'P3', base.HEX)
+
+request_sim_io.fields.data =
+    ProtoField.string('rild.request.sim_io.fields.data', 'Data', base.STRING)
+
+request_sim_io.fields.pin2 =
+    ProtoField.string('rild.request.sim_io.fields.pin2', 'PIN2', base.STRING)
+
+request_sim_io.fields.aid =
+    ProtoField.string('rild.request.sim_io.fields.aid', 'AID', base.STRING)
+
+function request_sim_io.dissector(buffer, info, tree)
+    tree:add_le(request_sim_io.fields.command, buffer:range(0,4))
+    tree:add_le(request_sim_io.fields.fileid, buffer:range(4,4))
+
+    local path_len, path = parse_string(buffer(8,-1))
+    tree:add(request_sim_io.fields.path, buffer(8, path_len), '"' .. path .. '"')
+
+    local path_end = 8 + path_len
+    tree:add_le(request_sim_io.fields.p1, buffer:range(path_end,4))
+    tree:add_le(request_sim_io.fields.p2, buffer:range(path_end + 4,4))
+    tree:add_le(request_sim_io.fields.p3, buffer:range(path_end + 8,4))
+
+    local data_len, data = parse_string(buffer(path_end + 12,-1))
+    tree:add(request_sim_io.fields.data, buffer(path_end + 12, data_len), '"' .. data .. '"')
+
+    local data_end = path_end + 12 + data_len
+    local pin2_len, pin2 = parse_string(buffer(data_end, -1))
+    tree:add(request_sim_io.fields.data, buffer(data_end, pin2_len), '"' .. pin2 .. '"')
+
+    local pin2_end = data_end + pin2_len
+    if pin2_end + 4 <= buffer:len()
+    then
+        local aid_len, aid = parse_string(buffer(pin2_end, -1))
+        tree:add(request_sim_io.fields.aid, buffer(pin2_end, aid_len), '"' .. aid .. '"')
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REPLY(DATA_REGISTRATION_STATE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
