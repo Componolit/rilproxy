@@ -23,7 +23,7 @@ rilproxy.experts = { rild_error }
 -- Helper functions
 -----------------------------------------------------------------------------------------------------------------------
 function parse_int_list(buffer)
-    result = {}
+    local result = {}
     assert(buffer:len() > 3)
     local len = buffer:range(0,4):le_uint()
     assert(4 * len + 4 <= buffer:len())
@@ -35,16 +35,33 @@ function parse_int_list(buffer)
 end
 
 function parse_string(buffer)
-    local result = ""
+
     assert(buffer:len() > 3)
     local len = buffer:range(0,4):le_uint()
-    assert(2 * len + 4 <= buffer:len(), "len=" .. len)
+
+    --  Null string is represented as len=0xffffffff.
+    if len == 0xffffffff
+    then
+        return 4, "<NULL>"
+    end
+
+    -- The len values stored in the first 4 bytes of the buffer
+    -- denotes the length in *characters*. Every character allocates
+    -- 2 bytes of space and is stored in little-endian byte order.
+    -- The storage size of the string in bytes is rounded up to the
+    -- next multiple of 4 bytes such that space is availble for an
+    -- additional trailing null-character (2 bytes).
+    local string_len = 4 + 4 * math.ceil ((len + 1) / 2)
+
+    assert(string_len <= buffer:len(), "len=" .. len .. ", expectd >= " .. string_len)
+
+    local result = ""
     for i=4,2*len+2,2
     do
         result = result .. string.char(buffer:range(i,2):le_uint())
     end
 
-    return len, result
+    return string_len, result
 end
 
 -- Add an little-endian integer from 'buffer' to a 'field' in 'tree'.
@@ -52,7 +69,7 @@ end
 -- not equal 'invalid'. Otherwise the strings 'INVALID' or 'OUT OF BOUNDS'
 -- are added respectively.
 function add_le_with_domain(tree, field, buffer, first, last, invalid)
-    value = buffer:le_int()
+    local value = buffer:le_int()
 
     if value == invalid
     then
@@ -96,7 +113,7 @@ local unsol_ril_connected = Proto("rild.unsol.ril_connected", "RIL_CONNECTED");
 unsol_ril_connected.fields.version = ProtoField.uint32('rild.unsol_ril_connected.version', 'RIL version', base.DEC)
 
 function unsol_ril_connected.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add_le(unsol_ril_connected.fields.version, buffer:range(4,4))
@@ -262,7 +279,7 @@ request_radio_power.fields.power =
     ProtoField.uint32('rild.request.radio_power.power', 'Radio power', base.DEC, RADIO_POWER)
 
 function request_radio_power.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add(request_radio_power.fields.power, buffer:range(4,4))
@@ -286,7 +303,7 @@ request_screen_state.fields.screenstate =
     ProtoField.uint32('rild.request.screen_state.screenstate', 'Screen state', base.DEC, SCREEN_STATE)
 
 function request_screen_state.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add_le(request_screen_state.fields.screenstate, buffer:range(4,4))
@@ -308,21 +325,22 @@ request_sim_open_channel.fields.aid =
     ProtoField.string('rild.request.sim_open_channel.aid', 'Value', base.STRING)
 
 function request_sim_open_channel.dissector(buffer, info, tree)
-    len, value = parse_string(buffer)
+    local text
+    local len, value = parse_string(buffer)
 
     --  Values according to https://source.android.com/devices/tech/config/uicc
     if value == "A00000015141434C00"
     then
-        text = "Access Rule Applet ("
+        text = 'Access Rule Applet ("'
     elseif value == "A000000063504B43532D3135"
     then
-        text = "PKCS15 ("
+        text = 'PKCS15 ("'
     else
-        text = "INVALID ("
+        text = 'INVALID ("'
     end
-    text = text .. value .. ")"
+    text = text .. value .. '")'
 
-    subtree:add(request_sim_open_channel.fields.aid, buffer(4, 2*len), text)
+    subtree:add(request_sim_open_channel.fields.aid, buffer(0, len), text)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -335,7 +353,7 @@ request_cdma_set_subscription_source.fields.subscription =
     ProtoField.uint32('rild.request.cdma_set_subscription_source.fields.subscription', 'Subscription source', base.DEC, CDMASUBSCRIPTIONSOURCE)
 
 function request_cdma_set_subscription_source.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add(request_cdma_set_subscription_source.fields.subscription, buffer:range(4,4))
@@ -356,7 +374,7 @@ request_set_unsol_cell_info_list_rate.fields.rate =
     ProtoField.string('rild.request.set_unsol_cell_info_list_rate.fields.rate', 'Rate')
 
 function request_set_unsol_cell_info_list_rate.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         if (values[1] == 0)
@@ -397,7 +415,7 @@ request_start_lce.fields.servicemode =
     ProtoField.uint32('rild.request.start_lce.fields.servicemode', 'Service mode', base.DEC, LCE_SERVICE_MODE)
 
 function request_start_lce.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 2
     then
         tree:add(request_start_lce.fields.reportinginterval, buffer:range(4,4), values[1])
@@ -467,7 +485,7 @@ reply_query_network_selection_mode.fields.selection =
     ProtoField.uint32('rild.reply.reply_query_network_selection_mode.selection', 'Selection mode', base.DEC, SELECTION)
 
 function reply_query_network_selection_mode.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add_le(reply_query_network_selection_mode.fields.selection, buffer:range(4,4))
@@ -482,17 +500,12 @@ end
 
 local reply_baseband_version = Proto("rild.reply.baseband_version", "BASEBAND_VERSION");
 
-reply_baseband_version.fields.version_len =
-    ProtoField.uint32('rild.reply.reply_baseband_version.version_len', 'Length', base.DEC)
-
 reply_baseband_version.fields.version =
-    ProtoField.string('rild.reply.reply_baseband_version.version', 'Value', base.STRING)
+    ProtoField.string('rild.reply.reply_baseband_version.version', 'Baseband version', base.STRING)
 
 function reply_baseband_version.dissector(buffer, info, tree)
-    local subtree = tree:add(reply_baseband_version, buffer:range(0, -1), "Baseband version")
-    len, string = parse_string(buffer)
-    subtree:add(reply_baseband_version.fields.version_len, buffer:range(0, 4), len)
-    subtree:add(reply_baseband_version.fields.version, buffer:range(4, 2*len+2), string)
+    local len, string = parse_string(buffer)
+    tree:add(reply_baseband_version.fields.version, buffer:range(0, len), '"' .. string .. '"')
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -501,17 +514,12 @@ end
 
 local reply_get_imei = Proto("rild.reply.get_imei", "GET_IMEI");
 
-reply_get_imei.fields.imei_len =
-    ProtoField.uint32('rild.reply.reply_get_imei.imei_len', 'Length', base.DEC)
-
 reply_get_imei.fields.imei =
-    ProtoField.string('rild.reply.reply_get_imei.imei', 'Value', base.STRING)
+    ProtoField.string('rild.reply.reply_get_imei.imei', 'IMEI', base.STRING)
 
 function reply_get_imei.dissector(buffer, info, tree)
-    local subtree = tree:add(reply_get_imei, buffer:range(0, -1), "IMEI")
-    len, string = parse_string(buffer)
-    subtree:add(reply_get_imei.fields.imei_len, buffer:range(0, 4), len)
-    subtree:add(reply_get_imei.fields.imei, buffer:range(4, 2*len+2), string)
+    local len, string = parse_string(buffer)
+    tree:add(reply_get_imei.fields.imei, buffer:range(0, len), '"' .. string .. '"')
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -520,17 +528,12 @@ end
 
 local reply_get_imeisv = Proto("rild.reply.get_imeisv", "GET_IMEISV");
 
-reply_get_imeisv.fields.imei_len =
-    ProtoField.uint32('rild.reply.reply_get_imeisv.imei_len', 'Length', base.DEC)
-
-reply_get_imeisv.fields.imei =
-    ProtoField.string('rild.reply.reply_get_imeisv.imei', 'Value', base.STRING)
+reply_get_imeisv.fields.imeisv =
+    ProtoField.string('rild.reply.reply_get_imeisv.imeisv', 'IMEISV', base.STRING)
 
 function reply_get_imeisv.dissector(buffer, info, tree)
-    local subtree = tree:add(reply_get_imeisv, buffer:range(0, -1), "IMEISV")
-    len, string = parse_string(buffer)
-    subtree:add(reply_get_imeisv.fields.imei_len, buffer:range(0, 4), len)
-    subtree:add(reply_get_imeisv.fields.imei, buffer:range(4, 2*len+2), string)
+    local len, string = parse_string(buffer)
+    tree:add(reply_get_imeisv.fields.imeisv, buffer:range(0, len), '"' .. string .. '"')
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -570,7 +573,7 @@ reply_voice_radio_tech.fields.radiotechnology =
     ProtoField.uint32('rild.reply.reply_voice_radio_tech.radiotechnology', 'Radio technology', base.DEC, RADIOTECHNOLOGY)
 
 function reply_voice_radio_tech.dissector(buffer, info, tree)
-    values = parse_int_list(buffer)
+    local values = parse_int_list(buffer)
     if #values == 1
     then
         tree:add_le(reply_voice_radio_tech.fields.radiotechnology, buffer:range(4,4))
