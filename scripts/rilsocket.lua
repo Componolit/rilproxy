@@ -950,6 +950,29 @@ function reply_voice_radio_tech.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(SIM_IO) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_sim_io = Proto("rild.reply.sim_io", "SIM_IO");
+
+reply_sim_io.fields.sw1 =
+    ProtoField.uint32('rild.reply.reply_sim_io.sw1', 'SW1', base.DEC)
+
+reply_sim_io.fields.sw2 =
+    ProtoField.uint32('rild.reply.reply_sim_io.sw2', 'SW2', base.DEC)
+
+reply_sim_io.fields.simresponse =
+    ProtoField.string('rild.reply.reply_sim_io.simresponse', 'SIM response', base.STRING)
+
+function reply_sim_io.dissector(buffer, info, tree)
+    tree:add_le(reply_sim_io.fields.sw1, buffer:range(0,4))
+    tree:add_le(reply_sim_io.fields.sw2, buffer:range(4,4))
+
+    response_len, response = parse_string(buffer(8,-1))
+    tree:add(reply_sim_io.fields.simresponse, buffer:range(8,response_len), nil_repr(response))
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
