@@ -42,7 +42,7 @@ function parse_string(buffer)
     --  Null string is represented as len=0xffffffff.
     if len == 0xffffffff
     then
-        return 4, "<NULL>"
+        return 4, nil
     end
 
     -- The len values stored in the first 4 bytes of the buffer
@@ -89,6 +89,17 @@ function parse_bytes(buffer)
     local padded_len = 4 * math.floor((len + 3) / 4) + 4
 
     return padded_len, buffer:range(4,len)
+end
+
+--  Represent nil value as <NULL> string
+function nil_repr(value)
+
+    if value == nil
+    then
+        return '<NULL>'
+    end
+
+    return value
 end
 
 -- Add an little-endian integer from 'buffer' to a 'field' in 'tree'.
@@ -368,6 +379,7 @@ request_sim_open_channel.fields.aid =
 function request_sim_open_channel.dissector(buffer, info, tree)
     local text
     local len, value = parse_string(buffer)
+    value = nil_repr(value)
 
     --  Values according to https://source.android.com/devices/tech/config/uicc
     if value == "A00000015141434C00"
@@ -524,7 +536,7 @@ function request_sim_io.dissector(buffer, info, tree)
     tree:add_le(request_sim_io.fields.fileid, buffer:range(4,4))
 
     local path_len, path = parse_string(buffer(8,-1))
-    tree:add(request_sim_io.fields.path, buffer(8, path_len), '"' .. path .. '"')
+    tree:add(request_sim_io.fields.path, buffer(8, path_len), '"' .. nil_repr(path) .. '"')
 
     local path_end = 8 + path_len
     tree:add_le(request_sim_io.fields.p1, buffer:range(path_end,4))
@@ -532,17 +544,17 @@ function request_sim_io.dissector(buffer, info, tree)
     tree:add_le(request_sim_io.fields.p3, buffer:range(path_end + 8,4))
 
     local data_len, data = parse_string(buffer(path_end + 12,-1))
-    tree:add(request_sim_io.fields.data, buffer(path_end + 12, data_len), '"' .. data .. '"')
+    tree:add(request_sim_io.fields.data, buffer(path_end + 12, data_len), '"' .. nil_repr(data) .. '"')
 
     local data_end = path_end + 12 + data_len
     local pin2_len, pin2 = parse_string(buffer(data_end, -1))
-    tree:add(request_sim_io.fields.data, buffer(data_end, pin2_len), '"' .. pin2 .. '"')
+    tree:add(request_sim_io.fields.data, buffer(data_end, pin2_len), '"' .. nil_repr(pin2) .. '"')
 
     local pin2_end = data_end + pin2_len
     if pin2_end + 4 <= buffer:len()
     then
         local aid_len, aid = parse_string(buffer(pin2_end, -1))
-        tree:add(request_sim_io.fields.aid, buffer(pin2_end, aid_len), '"' .. aid .. '"')
+        tree:add(request_sim_io.fields.aid, buffer(pin2_end, aid_len), '"' .. nil_repr(aid) .. '"')
     end
 end
 
@@ -611,11 +623,11 @@ function reply_data_registration_state.dissector(buffer, info, tree)
         start = 4
         tree:add(reply_data_registration_state.fields.regstate, buffer(start, results[1].len), results[1].data)
         start = start + results[1].len
-        tree:add(reply_data_registration_state.fields.lac, buffer(start, results[2].len), results[2].data)
+        tree:add(reply_data_registration_state.fields.lac, buffer(start, results[2].len), nil_repr(results[2].data))
         start = start + results[2].len
-        tree:add(reply_data_registration_state.fields.cid, buffer(start, results[3].len), results[3].data)
+        tree:add(reply_data_registration_state.fields.cid, buffer(start, results[3].len), nil_repr(results[3].data))
         start = start + results[3].len
-        tree:add(reply_data_registration_state.fields.rat, buffer(start, results[4].len), results[4].data)
+        tree:add(reply_data_registration_state.fields.rat, buffer(start, results[4].len), nil_repr(results[4].data))
         start = start + results[4].len
         tree:add(reply_data_registration_state.fields.reasondatadenied, buffer(start, results[5].len), results[5].data)
         start = start + results[5].len
@@ -624,15 +636,15 @@ function reply_data_registration_state.dissector(buffer, info, tree)
         if #results >= 11
         then
             start = start + results[6].len
-            tree:add(reply_data_registration_state.fields.ltetac, buffer(start, results[7].len), results[7].data)
+            tree:add(reply_data_registration_state.fields.ltetac, buffer(start, results[7].len), nil_repr(results[7].data))
             start = start + results[7].len
-            tree:add(reply_data_registration_state.fields.ltecid, buffer(start, results[8].len), results[8].data)
+            tree:add(reply_data_registration_state.fields.ltecid, buffer(start, results[8].len), nil_repr(results[8].data))
             start = start + results[8].len
-            tree:add(reply_data_registration_state.fields.lteeci, buffer(start, results[9].len), results[9].data)
+            tree:add(reply_data_registration_state.fields.lteeci, buffer(start, results[9].len), nil_repr(results[9].data))
             start = start + results[9].len
-            tree:add(reply_data_registration_state.fields.ltecsgid, buffer(start, results[10].len), results[10].data)
+            tree:add(reply_data_registration_state.fields.ltecsgid, buffer(start, results[10].len), nil_repr(results[10].data))
             start = start + results[10].len
-            tree:add(reply_data_registration_state.fields.ltetadv, buffer(start, results[11].len), results[11].data)
+            tree:add(reply_data_registration_state.fields.ltetadv, buffer(start, results[11].len), nil_repr(results[11].data))
         end
     else
         tree:add_tvb_expert_info(reply_data_registration_state.fields.regstate, buffer, "Expected string list with 11 element (got " .. #results .. ")")
@@ -676,7 +688,7 @@ reply_baseband_version.fields.version =
 
 function reply_baseband_version.dissector(buffer, info, tree)
     local len, string = parse_string(buffer)
-    tree:add(reply_baseband_version.fields.version, buffer:range(0, len), '"' .. string .. '"')
+    tree:add(reply_baseband_version.fields.version, buffer:range(0, len), '"' .. nil_repr(string) .. '"')
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- REPLY(OPERATOR) dissector
@@ -713,7 +725,7 @@ reply_get_imei.fields.imei =
 
 function reply_get_imei.dissector(buffer, info, tree)
     local len, string = parse_string(buffer)
-    tree:add(reply_get_imei.fields.imei, buffer:range(0, len), '"' .. string .. '"')
+    tree:add(reply_get_imei.fields.imei, buffer:range(0, len), '"' .. nil_repr(string) .. '"')
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -727,7 +739,7 @@ reply_get_imeisv.fields.imeisv =
 
 function reply_get_imeisv.dissector(buffer, info, tree)
     local len, string = parse_string(buffer)
-    tree:add(reply_get_imeisv.fields.imeisv, buffer:range(0, len), '"' .. string .. '"')
+    tree:add(reply_get_imeisv.fields.imeisv, buffer:range(0, len), '"' .. nil_repr(string) .. '"')
 end
 
 -----------------------------------------------------------------------------------------------------------------------
