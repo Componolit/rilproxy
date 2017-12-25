@@ -553,11 +553,18 @@ end
 local reply_data_registration_state = Proto("rild.reply.data_registration_state", "REPLY_DATA_REGISTRATION_STATE");
 
 reply_data_registration_state.fields.regstate =
-    ProtoField.uint32('rild.reply.data_registration_state.regstate', 'Registration state', base.DEC, REGSTATE)
+    ProtoField.string('rild.reply.data_registration_state.regstate', 'Registration state', base.STRING)
 
-reply_data_registration_state.fields.radiotechnology =
-    ProtoField.uint32('rild.reply.data_registration_state.radiotechnology', 'Radio technology', base.DEC, RADIOTECHNOLOGY)
+reply_data_registration_state.fields.lac =
+    ProtoField.string('rild.reply.data_registration_state.lac', 'LAC', base.STRING)
 
+reply_data_registration_state.fields.cid =
+    ProtoField.string('rild.reply.data_registration_state.cid', 'CID', base.STRING)
+
+reply_data_registration_state.fields.rat =
+    ProtoField.string('rild.reply.data_registration_state.rat', 'RAT', base.STRING)
+
+-- FIXME: Not used at the moment. Convert strings to numeric values.
 DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED = 7
 DATA_DENIED_REASON_GPRS_SERVICE_AND_NON_GPRS_SERVICE_NOT_ALLOWED = 8
 DATA_DENIED_REASON_MS_IDENTITY_CANNOT_BE_DERIVED = 9
@@ -577,16 +584,59 @@ DATA_DENIED_REASON = {
 }
 
 reply_data_registration_state.fields.reasondatadenied =
-    ProtoField.uint32('rild.reply.data_registration_state.reasondatadenied', 'Data-denied reason', base.DEC, DATA_DENIED_REASON)
+    ProtoField.string('rild.reply.data_registration_state.reasondatadenied', 'Data-denied reason', base.STRING)
 
 reply_data_registration_state.fields.maxdatacalls =
-    ProtoField.uint32('rild.reply.data_registration_state.maxdatacalls', 'Maximum data calls', base.DEC)
+    ProtoField.string('rild.reply.data_registration_state.maxdatacalls', 'Maximum data calls', base.STRING)
+
+reply_data_registration_state.fields.ltetac =
+    ProtoField.string('rild.reply.data_registration_state.ltetac', 'LTE TAC', base.STRING)
+
+reply_data_registration_state.fields.ltecid =
+    ProtoField.string('rild.reply.data_registration_state.ltecid', 'LTE CID', base.STRING)
+
+reply_data_registration_state.fields.lteeci =
+    ProtoField.string('rild.reply.data_registration_state.lteeci', 'LTE ECI', base.STRING)
+
+reply_data_registration_state.fields.ltecsgid =
+    ProtoField.string('rild.reply.data_registration_state.ltecsgid', 'LTE CSGID', base.STRING)
+
+reply_data_registration_state.fields.ltetadv =
+    ProtoField.string('rild.reply.data_registration_state.ltetadv', 'LTE TADV', base.STRING)
 
 function reply_data_registration_state.dissector(buffer, info, tree)
-    tree:add_le(reply_data_registration_state.fields.regstate, buffer:range(0,4))
-    tree:add_le(reply_data_registration_state.fields.radiotechnology, buffer:range(4,4))
-    tree:add_le(reply_data_registration_state.fields.reasondatadenied, buffer:range(8,4))
-    tree:add_le(reply_data_registration_state.fields.maxdatacalls, buffer:range(12,4))
+    local results = parse_stringlist(buffer)
+    if #results >= 6
+    then
+        start = 4
+        tree:add(reply_data_registration_state.fields.regstate, buffer(start, results[1].len), results[1].data)
+        start = start + results[1].len
+        tree:add(reply_data_registration_state.fields.lac, buffer(start, results[2].len), results[2].data)
+        start = start + results[2].len
+        tree:add(reply_data_registration_state.fields.cid, buffer(start, results[3].len), results[3].data)
+        start = start + results[3].len
+        tree:add(reply_data_registration_state.fields.rat, buffer(start, results[4].len), results[4].data)
+        start = start + results[4].len
+        tree:add(reply_data_registration_state.fields.reasondatadenied, buffer(start, results[5].len), results[5].data)
+        start = start + results[5].len
+        tree:add(reply_data_registration_state.fields.maxdatacalls, buffer(start, results[6].len), results[6].data)
+
+        if #results >= 11
+        then
+            start = start + results[6].len
+            tree:add(reply_data_registration_state.fields.ltetac, buffer(start, results[7].len), results[7].data)
+            start = start + results[7].len
+            tree:add(reply_data_registration_state.fields.ltecid, buffer(start, results[8].len), results[8].data)
+            start = start + results[8].len
+            tree:add(reply_data_registration_state.fields.lteeci, buffer(start, results[9].len), results[9].data)
+            start = start + results[9].len
+            tree:add(reply_data_registration_state.fields.ltecsgid, buffer(start, results[10].len), results[10].data)
+            start = start + results[10].len
+            tree:add(reply_data_registration_state.fields.ltetadv, buffer(start, results[11].len), results[11].data)
+        end
+    else
+        tree:add_tvb_expert_info(reply_data_registration_state.fields.regstate, buffer, "Expected string list with 11 element (got " .. #results .. ")")
+    end
 end
 
 -----------------------------------------------------------------------------------------------------------------------
