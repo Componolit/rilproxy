@@ -868,9 +868,9 @@ reply_operator.fields.mcc_mnc =
 
 function reply_operator.dissector(buffer, info, tree)
     local results = parse_stringlist(buffer)
-    tree:add(reply_operator.fields.long_alpha_ons, buffer(4, results[1].len), results[1].data)
-    tree:add(reply_operator.fields.short_alpha_ons, buffer(4 + results[1].len, results[2].len), results[2].data)
-    tree:add(reply_operator.fields.mcc_mnc, buffer(4 + results[1].len + results[2].len, results[3].len), results[3].data)
+    tree:add(reply_operator.fields.long_alpha_ons, buffer(4, results[1].len), nil_repr(results[1].data))
+    tree:add(reply_operator.fields.short_alpha_ons, buffer(4 + results[1].len, results[2].len), nil_repr(results[2].data))
+    tree:add(reply_operator.fields.mcc_mnc, buffer(4 + results[1].len + results[2].len, results[3].len), nil_repr(results[3].data))
     -- FIXME: The traces I saw had 6 strings - investigate what the remaining 3 are good for.
 end
 
