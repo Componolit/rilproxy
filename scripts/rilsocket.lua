@@ -102,6 +102,15 @@ function nil_repr(value)
     return value
 end
 
+--  Convert string to int, return 0xffffffff if input is nil
+function to_int(text)
+    if text == nil
+    then
+        return 0xffffffff
+    end
+    return tonumber(text)
+end
+
 -- Add an little-endian integer from 'buffer' to a 'field' in 'tree'.
 -- The value is addeded only if it is within first..last and does
 -- not equal 'invalid'. Otherwise the strings 'INVALID' or 'OUT OF BOUNDS'
@@ -565,7 +574,7 @@ end
 local reply_data_registration_state = Proto("rild.reply.data_registration_state", "REPLY_DATA_REGISTRATION_STATE");
 
 reply_data_registration_state.fields.regstate =
-    ProtoField.string('rild.reply.data_registration_state.regstate', 'Registration state', base.STRING)
+    ProtoField.uint32('rild.reply.data_registration_state.regstate', 'Registration state', base.DEC, REGSTATE)
 
 reply_data_registration_state.fields.lac =
     ProtoField.string('rild.reply.data_registration_state.lac', 'LAC', base.STRING)
@@ -596,10 +605,10 @@ DATA_DENIED_REASON = {
 }
 
 reply_data_registration_state.fields.reasondatadenied =
-    ProtoField.string('rild.reply.data_registration_state.reasondatadenied', 'Data-denied reason', base.STRING)
+    ProtoField.uint32('rild.reply.data_registration_state.reasondatadenied', 'Data-denied reason', base.DEC, DATA_DENIED_REASON)
 
 reply_data_registration_state.fields.maxdatacalls =
-    ProtoField.string('rild.reply.data_registration_state.maxdatacalls', 'Maximum data calls', base.STRING)
+    ProtoField.uint32('rild.reply.data_registration_state.maxdatacalls', 'Maximum data calls', base.DEC)
 
 reply_data_registration_state.fields.ltetac =
     ProtoField.string('rild.reply.data_registration_state.ltetac', 'LTE TAC', base.STRING)
@@ -621,7 +630,7 @@ function reply_data_registration_state.dissector(buffer, info, tree)
     if #results >= 6
     then
         start = 4
-        tree:add(reply_data_registration_state.fields.regstate, buffer(start, results[1].len), results[1].data)
+        tree:add(reply_data_registration_state.fields.regstate, buffer(start, results[1].len), to_int(results[1].data))
         start = start + results[1].len
         tree:add(reply_data_registration_state.fields.lac, buffer(start, results[2].len), nil_repr(results[2].data))
         start = start + results[2].len
@@ -629,9 +638,9 @@ function reply_data_registration_state.dissector(buffer, info, tree)
         start = start + results[3].len
         tree:add(reply_data_registration_state.fields.rat, buffer(start, results[4].len), nil_repr(results[4].data))
         start = start + results[4].len
-        tree:add(reply_data_registration_state.fields.reasondatadenied, buffer(start, results[5].len), results[5].data)
+        tree:add(reply_data_registration_state.fields.reasondatadenied, buffer(start, results[5].len), to_int(results[5].data))
         start = start + results[5].len
-        tree:add(reply_data_registration_state.fields.maxdatacalls, buffer(start, results[6].len), results[6].data)
+        tree:add(reply_data_registration_state.fields.maxdatacalls, buffer(start, results[6].len), to_int(results[6].data))
 
         if #results >= 11
         then
