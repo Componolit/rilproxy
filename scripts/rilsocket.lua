@@ -583,7 +583,7 @@ reply_data_registration_state.fields.cid =
     ProtoField.string('rild.reply.data_registration_state.cid', 'CID', base.STRING)
 
 reply_data_registration_state.fields.rat =
-    ProtoField.string('rild.reply.data_registration_state.rat', 'RAT', base.STRING)
+    ProtoField.uint32('rild.reply.data_registration_state.rat', 'RAT', base.DEC, RADIOTECHNOLOGY)
 
 -- FIXME: Not used at the moment. Convert strings to numeric values.
 DATA_DENIED_REASON_GPRS_SERVICE_NOT_ALLOWED = 7
@@ -636,7 +636,7 @@ function reply_data_registration_state.dissector(buffer, info, tree)
         start = start + results[2].len
         tree:add(reply_data_registration_state.fields.cid, buffer(start, results[3].len), nil_repr(results[3].data))
         start = start + results[3].len
-        tree:add(reply_data_registration_state.fields.rat, buffer(start, results[4].len), nil_repr(results[4].data))
+        tree:add(reply_data_registration_state.fields.rat, buffer(start, results[4].len), to_int(results[4].data))
         start = start + results[4].len
         tree:add(reply_data_registration_state.fields.reasondatadenied, buffer(start, results[5].len), to_int(results[5].data))
         start = start + results[5].len
