@@ -64,6 +64,22 @@ function parse_string(buffer)
     return string_len, result
 end
 
+function parse_stringlist(buffer)
+
+    assert(buffer:len() > 3)
+    local len = buffer:range(0,4):le_uint()
+    local start = 4
+
+    results = {}
+    for i=1,len
+    do
+        len, data = parse_string(buffer(start,-1))
+        table.insert(results, {len=len, data=data})
+        start = start + len
+    end
+    return results
+end
+
 function parse_bytes(buffer)
 
     assert(buffer:len() > 3)
@@ -612,6 +628,29 @@ function reply_baseband_version.dissector(buffer, info, tree)
     local len, string = parse_string(buffer)
     tree:add(reply_baseband_version.fields.version, buffer:range(0, len), '"' .. string .. '"')
 end
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(OPERATOR) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_operator = Proto("rild.reply.operator", "OPERATOR");
+
+reply_operator.fields.long_alpha_ons =
+    ProtoField.string('rild.reply.reply_operator.long_alpha_ons', 'Long alpha ONS or EONS', base.STRING)
+
+reply_operator.fields.short_alpha_ons =
+    ProtoField.string('rild.reply.reply_operator.short_alpha_ons', 'Short alpha ONS or EONS', base.STRING)
+
+reply_operator.fields.mcc_mnc =
+    ProtoField.string('rild.reply.reply_operator.mcc_mnc', 'MCC/MNC', base.STRING)
+
+function reply_operator.dissector(buffer, info, tree)
+    local results = parse_stringlist(buffer)
+    tree:add(reply_operator.fields.long_alpha_ons, buffer(4, results[1].len), results[1].data)
+    tree:add(reply_operator.fields.short_alpha_ons, buffer(4 + results[1].len, results[2].len), results[2].data)
+    tree:add(reply_operator.fields.mcc_mnc, buffer(4 + results[1].len + results[2].len, results[3].len), results[3].data)
+    -- FIXME: The traces I saw had 6 strings - investigate what the remaining 3 are good for.
+end
+
 
 -----------------------------------------------------------------------------------------------------------------------
 -- REPLY(GET_IMEI) dissector
