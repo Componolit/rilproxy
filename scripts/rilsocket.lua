@@ -661,6 +661,158 @@ function reply_data_registration_state.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(VOICE_REGISTRATION_STATE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_voice_registration_state = Proto("rild.reply.voice_registration_state", "REPLY_VOICE_REGISTRATION_STATE");
+
+reply_voice_registration_state.fields.regstate =
+    ProtoField.uint32('rild.reply.voice_registration_state.regstate', 'Registration state', base.DEC, REGSTATE)
+
+reply_voice_registration_state.fields.rat =
+    ProtoField.uint32('rild.reply.voice_registration_state.rat', 'RAT', base.DEC, RADIOTECHNOLOGY)
+
+CSS_UNSUPPORTED = 0
+CSS_SUPPORTED = 1
+CSS_NOT_APPLICABLE = 0xffffffff
+
+CSS = {
+    [CSS_UNSUPPORTED] = "UNSUPPORTED",
+    [CSS_SUPPORTED] = "SUPPORTED",
+    [CSS_NOT_APPLICABLE] = "N/A"
+}
+
+reply_voice_registration_state.fields.csssupported =
+    ProtoField.uint32('rild.reply.voice_registration_state.csssupported', 'Concurrent services', base.DEC, CSS)
+
+reply_voice_registration_state.fields.roamingindicator =
+    ProtoField.uint32('rild.reply.voice_registration_state.roamingindicator', 'Roaming indicator', base.DEC)
+
+INPRL_NOT_INPRL = 0
+INPRL_INPRL = 1
+INPRL_NOT_APPLICABLE = 0xffffffff
+
+INPRL = {
+    [INPRL_NOT_INPRL] = "NOT IN PRL",
+    [INPRL_INPRL] = "IN PRL",
+    [INPRL_NOT_APPLICABLE] = "N/A"
+}
+
+reply_voice_registration_state.fields.systemisinprl =
+    ProtoField.uint32('rild.reply.voice_registration_state.systemisinprl', 'Roaming indicator', base.DEC, INPRL)
+
+reply_voice_registration_state.fields.defaultroamingindicator =
+    ProtoField.uint32('rild.reply.voice_registration_state.defaultroamingindicator', 'Default roaming indicator', base.DEC)
+
+REASONFORDENIAL_GENERAL = 0
+REASONFORDENIAL_AUTHENTICATION_FAILURE = 1
+REASONFORDENIAL_IMSI_UNKNOWN_IN_HLR = 2
+REASONFORDENIAL_ILLEGAL_MS = 3
+REASONFORDENIAL_ILLEGAL_ME = 4
+REASONFORDENIAL_PLMN_NOT_ALLOWED = 5
+REASONFORDENIAL_LOCATION_AREA_NOT_ALLOWED = 6
+REASONFORDENIAL_ROAMING_NOT_ALLOWED = 7
+REASONFORDENIAL_NO_SUITABLE_CELLS_IN_THIS_LOCATION_AREA = 8
+REASONFORDENIAL_NETWORK_FAILURE = 9
+REASONFORDENIAL_PERSISTENT_LOCATION_UPDATE_REJECT = 10
+REASONFORDENIAL_PLMN_NOT_ALLOWED = 11
+REASONFORDENIAL_LOCATION_AREA_NOT_ALLOWED = 12
+REASONFORDENIAL_ROAMING_NOT_ALLOWED_IN_THIS_LOCATION_AREA = 13
+REASONFORDENIAL_NO_SUITABLE_CELLS_IN_THIS_LOCATION_AREA = 15
+REASONFORDENIAL_NETWORK_FAILURE = 17
+REASONFORDENIAL_MAC_FAILURE = 20
+REASONFORDENIAL_SYNC_FAILURE = 21
+REASONFORDENIAL_CONGESTION = 22
+REASONFORDENIAL_GSM_AUTHENTICATION_UNACCEPTABLE = 23
+REASONFORDENIAL_NOT_AUTHORIZED_FOR_THIS_CSG = 25
+REASONFORDENIAL_SERVICE_OPTION_NOT_SUPPORTED = 32
+REASONFORDENIAL_REQUESTED_SERVICE_OPTION_NOT_SUBSCRIBED = 33
+REASONFORDENIAL_SERVICE_OPTION_TEMPORARILY_OUT_OF_ORDER = 34
+REASONFORDENIAL_CALL_CANNOT_BE_IDENTIFIED = 38
+REASONFORDENIAL_SEMANTICALLY_INCORRECT_MESSAGE = 95
+REASONFORDENIAL_INVALID_MANDATORY_INFORMATION = 96
+REASONFORDENIAL_MESSAGE_TYPE_NON_EXISTENT_OR_NOT_IMPLEMENTED = 97
+REASONFORDENIAL_MESSAGE_TYPE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE = 98
+REASONFORDENIAL_INFORMATION_ELEMENT_NON_EXISTENT_OR_NOT_IMPLEMENTED = 99
+REASONFORDENIAL_CONDITIONAL_IE_ERROR = 100
+REASONFORDENIAL_MESSAGE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE = 101
+REASONFORDENIAL_NOT_APPLICABLE = 0xffffffff
+
+REASONFORDENIAL = {
+    [REASONFORDENIAL_GENERAL] = "GENERAL",
+    [REASONFORDENIAL_AUTHENTICATION_FAILURE] = "AUTHENTICATION_FAILURE",
+    [REASONFORDENIAL_IMSI_UNKNOWN_IN_HLR] = "IMSI_UNKNOWN_IN_HLR",
+    [REASONFORDENIAL_ILLEGAL_MS] = "ILLEGAL_MS",
+    [REASONFORDENIAL_ILLEGAL_ME] = "ILLEGAL_ME",
+    [REASONFORDENIAL_PLMN_NOT_ALLOWED] = "PLMN_NOT_ALLOWED",
+    [REASONFORDENIAL_LOCATION_AREA_NOT_ALLOWED] = "LOCATION_AREA_NOT_ALLOWED",
+    [REASONFORDENIAL_ROAMING_NOT_ALLOWED] = "ROAMING_NOT_ALLOWED",
+    [REASONFORDENIAL_NO_SUITABLE_CELLS_IN_THIS_LOCATION_AREA] = "NO_SUITABLE_CELLS_IN_THIS_LOCATION_AREA",
+    [REASONFORDENIAL_NETWORK_FAILURE] = "NETWORK_FAILURE",
+    [REASONFORDENIAL_PERSISTENT_LOCATION_UPDATE_REJECT] = "PERSISTENT_LOCATION_UPDATE_REJECT",
+    [REASONFORDENIAL_PLMN_NOT_ALLOWED] = "PLMN_NOT_ALLOWED",
+    [REASONFORDENIAL_LOCATION_AREA_NOT_ALLOWED] = "LOCATION_AREA_NOT_ALLOWED",
+    [REASONFORDENIAL_ROAMING_NOT_ALLOWED_IN_THIS_LOCATION_AREA] = "ROAMING_NOT_ALLOWED_IN_THIS_LOCATION_AREA",
+    [REASONFORDENIAL_NO_SUITABLE_CELLS_IN_THIS_LOCATION_AREA] = "NO_SUITABLE_CELLS_IN_THIS_LOCATION_AREA",
+    [REASONFORDENIAL_NETWORK_FAILURE] = "NETWORK_FAILURE",
+    [REASONFORDENIAL_MAC_FAILURE] = "MAC_FAILURE",
+    [REASONFORDENIAL_SYNC_FAILURE] = "SYNC_FAILURE",
+    [REASONFORDENIAL_CONGESTION] = "CONGESTION",
+    [REASONFORDENIAL_GSM_AUTHENTICATION_UNACCEPTABLE] = "GSM_AUTHENTICATION_UNACCEPTABLE",
+    [REASONFORDENIAL_NOT_AUTHORIZED_FOR_THIS_CSG] = "NOT_AUTHORIZED_FOR_THIS_CSG",
+    [REASONFORDENIAL_SERVICE_OPTION_NOT_SUPPORTED] = "SERVICE_OPTION_NOT_SUPPORTED",
+    [REASONFORDENIAL_REQUESTED_SERVICE_OPTION_NOT_SUBSCRIBED] = "REQUESTED_SERVICE_OPTION_NOT_SUBSCRIBED",
+    [REASONFORDENIAL_SERVICE_OPTION_TEMPORARILY_OUT_OF_ORDER] = "SERVICE_OPTION_TEMPORARILY_OUT_OF_ORDER",
+    [REASONFORDENIAL_CALL_CANNOT_BE_IDENTIFIED] = "CALL_CANNOT_BE_IDENTIFIED",
+    [REASONFORDENIAL_SEMANTICALLY_INCORRECT_MESSAGE] = "SEMANTICALLY_INCORRECT_MESSAGE",
+    [REASONFORDENIAL_INVALID_MANDATORY_INFORMATION] = "INVALID_MANDATORY_INFORMATION",
+    [REASONFORDENIAL_MESSAGE_TYPE_NON_EXISTENT_OR_NOT_IMPLEMENTED] = "MESSAGE_TYPE_NON_EXISTENT_OR_NOT_IMPLEMENTED",
+    [REASONFORDENIAL_MESSAGE_TYPE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE] = "MESSAGE_TYPE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE",
+    [REASONFORDENIAL_INFORMATION_ELEMENT_NON_EXISTENT_OR_NOT_IMPLEMENTED] = "INFORMATION_ELEMENT_NON_EXISTENT_OR_NOT_IMPLEMENTED",
+    [REASONFORDENIAL_CONDITIONAL_IE_ERROR] = "CONDITIONAL_IE_ERROR",
+    [REASONFORDENIAL_MESSAGE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE] = "MESSAGE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE",
+    [REASONFORDENIAL_NOT_APPLICABLE] = "N/A",
+}
+
+--  48-63 - Retry upon entry into a new cell
+for e = 48, 64
+do
+    REASONFORDENIAL[e] = "RETRY_UPON_ENTRY_INTO_A_NEW_CELL"
+end
+
+reply_voice_registration_state.fields.reasonfordenial =
+    ProtoField.uint32('rild.reply.voice_registration_state.reasonfordenial', 'Reason for denial', base.DEC, REASONFORDENIAL)
+
+reply_voice_registration_state.fields.cellinfotype =
+    ProtoField.uint32('rild.reply.voice_registration_state.cellinfotype', 'Cell info type', base.DEC, CELLINFOTYPE)
+
+function reply_voice_registration_state.dissector(buffer, info, tree)
+    local results = parse_stringlist(buffer)
+    if #results >= 8
+    then
+        start = 4
+        tree:add(reply_voice_registration_state.fields.regstate, buffer(start, results[1].len), to_int(results[1].data))
+        start = start + results[1].len
+        tree:add(reply_voice_registration_state.fields.rat, buffer(start, results[2].len), to_int(results[2].data))
+        start = start + results[2].len
+        tree:add(reply_voice_registration_state.fields.csssupported, buffer(start, results[3].len), to_int(results[3].data))
+        start = start + results[3].len
+        tree:add(reply_voice_registration_state.fields.roamingindicator, buffer(start, results[4].len), to_int(results[4].data))
+        start = start + results[4].len
+        tree:add(reply_voice_registration_state.fields.systemisinprl, buffer(start, results[5].len), to_int(results[5].data))
+        start = start + results[5].len
+        tree:add(reply_voice_registration_state.fields.defaultroamingindicator, buffer(start, results[6].len), to_int(results[6].data))
+        start = start + results[6].len
+        tree:add(reply_voice_registration_state.fields.reasonfordenial, buffer(start, results[7].len), to_int(results[7].data))
+        start = start + results[7].len
+        tree:add(reply_voice_registration_state.fields.cellinfotype, buffer(start, results[8].len), to_int(results[8].data))
+        start = start + results[8].len
+    else
+        tree:add_tvb_expert_info(reply_voice_registration_state.fields.regstate, buffer, "Expected string list with 2 element (got " .. #results .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REPLY(QUERY_NETWORK_SELECTION_MODE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
