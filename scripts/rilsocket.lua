@@ -91,6 +91,55 @@ function parse_bytes(buffer)
     return padded_len, buffer:range(4,len)
 end
 
+--  Parse a number as a bitfield defined by table
+function parse_bitfield(value, table)
+
+    -- Sanity check: values must not overlap
+    for outer, unused1 in pairs(table)
+    do
+        for inner, unused2 in pairs(table)
+        do
+            assert(inner == outer or (bit32.band(inner, outer) == 0),
+                "parse_bitfield: Overlapping values [" .. inner .. "] and [" .. outer .. "]")
+        end
+    end
+
+    local result = {}
+    for entry, name in pairs(table)
+    do
+        if (bit32.band(value, entry)) > 0
+        then
+            result[entry] = name
+        end
+    end
+
+    return result
+end
+
+--  Print a table
+function table_repr(table)
+
+    if table == nil
+    then
+        return "<NULL>"
+    end
+
+    local num = 0
+    local result = ""
+
+    for value, name in pairs(table)
+    do
+        if num > 0
+        then
+            result = result .. ", "
+        end
+        result = result .. name .. " (" .. string.format('%x', value) .. ")"
+        num = num + 1
+    end
+
+    return result
+end
+
 --  Represent nil value as <NULL> string
 function nil_repr(value)
 
@@ -973,6 +1022,43 @@ function reply_sim_io.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REPLY(GET_RADIO_CAPABILITY) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_get_radio_capability = Proto("rild.reply.get_radio_capability", "GET_RADIO_CAPABILITY");
+
+reply_get_radio_capability.fields.version =
+    ProtoField.uint32('rild.reply.reply_get_radio_capability.version', 'Version', base.DEC)
+
+reply_get_radio_capability.fields.session =
+    ProtoField.uint32('rild.reply.reply_get_radio_capability.session', 'Session', base.DEC)
+
+reply_get_radio_capability.fields.phase =
+    ProtoField.uint32('rild.reply.reply_get_radio_capability.phase', 'Phase', base.DEC, RADIOCAPABILITYPHASE)
+
+reply_get_radio_capability.fields.rat =
+    ProtoField.string('rild.reply.reply_get_radio_capability.rat', 'RAT', base.STRING)
+
+reply_get_radio_capability.fields.logicalmodemuuid =
+    ProtoField.string('rild.reply.reply_get_radio_capability.logicalmodemuuid', 'Logical modem UUID', base.STRING)
+
+reply_get_radio_capability.fields.status =
+    ProtoField.uint32('rild.reply.reply_get_radio_capability.status', 'Status', base.DEC, RADIOCAPABILITYSTATUS)
+
+function reply_get_radio_capability.dissector(buffer, info, tree)
+    tree:add_le(reply_get_radio_capability.fields.version, buffer:range(0,4))
+    tree:add_le(reply_get_radio_capability.fields.session, buffer:range(4,4))
+    tree:add_le(reply_get_radio_capability.fields.phase, buffer:range(8,4))
+
+    local rat = buffer:range(12,4):le_int()
+    tree:add(reply_get_radio_capability.fields.rat, buffer:range(12,4), table_repr(parse_bitfield(rat, RADIOACCESSFAMILY)))
+
+    lmuuid_len, lmuuid = parse_string(buffer(16,-1))
+    tree:add(reply_get_radio_capability.fields.logicalmodemuuid, buffer:range(16,lmuuid_len), nil_repr(lmuuid))
+    tree:add_le(reply_get_radio_capability.fields.status, buffer:range(16 + lmuuid_len,4))
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- RILd dissector
 -----------------------------------------------------------------------------------------------------------------------
 local src_ip_addr_f = Field.new("ip.src")
@@ -1176,7 +1262,7 @@ function rilproxy.dissector(buffer, info, tree)
     then
         ap_ip = tostring(src_ip_addr_f())
         bp_ip = tostring(dst_ip_addr_f())
-    end        
+    end
 
     if subDissector == true
     then
