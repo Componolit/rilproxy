@@ -458,6 +458,32 @@ function request_radio_power.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(ENTER_SIM_PIN) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_enter_sim_pin = Proto("rild.request.enter_sim_pin", "REQUEST_ENTER_SIM_PIN");
+
+request_enter_sim_pin.fields.pin =
+    ProtoField.string('rild.request.enter_sim_pin.pin', 'PIN', base.STRING)
+
+request_enter_sim_pin.fields.aid =
+    ProtoField.string('rild.request.enter_sim_pin.aid', 'AID', base.STRING)
+
+function request_enter_sim_pin.dissector(buffer, info, tree)
+    results = parse_stringlist(buffer)
+    if #results == 2
+    then
+        start = 4
+        tree:add(request_enter_sim_pin.fields.pin, buffer(start, results[1].len), nil_repr(results[1].data))
+        start = start + results[1].len
+        tree:add(request_enter_sim_pin.fields.aid, buffer(start, results[2].len), nil_repr(results[2].data))
+        start = start + results[1].len
+    else
+        tree:add_tvb_expert_info(request_enter_sim_pin.fields.pin, buffer, "Expected string list with 2 element (got " .. #results .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(SCREEN_STATE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
@@ -1101,6 +1127,25 @@ function reply_voice_radio_tech.dissector(buffer, info, tree)
     if #values == 1
     then
         tree:add_le(reply_voice_radio_tech.fields.radiotechnology, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(ENTER_SIM_PIN) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_enter_sim_pin = Proto("rild.reply.enter_sim_pin", "REPLY_ENTER_SIM_PIN");
+
+reply_enter_sim_pin.fields.numberofretriesleft =
+    ProtoField.int32('rild.reply.reply_enter_sim_pin.numberofretriesleft', 'Number of retries left', base.DEC)
+
+function reply_enter_sim_pin.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add_le(reply_enter_sim_pin.fields.numberofretriesleft, buffer:range(4,4))
     else
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
