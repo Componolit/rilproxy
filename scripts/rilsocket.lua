@@ -554,6 +554,34 @@ function request_set_preferred_network_type.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(ALLOW_DATA) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_allow_data =
+    Proto("rild.request.allow_data", "ALLOW_DATA");
+
+DATAALLOWED_ALLOWED = 0
+DATAALLOWED_DISALLOWED = 1
+
+DATAALLOWED = {
+    [DATAALLOWED_ALLOWED] = "ALLOWED",
+    [DATAALLOWED_DISALLOWED] = "DISALLOWED"
+}
+
+request_allow_data.fields.dataallowed =
+    ProtoField.int32('rild.request.allow_data.fields.dataallowed', 'Data', base.DEC, DATAALLOWED)
+
+function request_allow_data.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add(request_allow_data.fields.dataallowed, buffer:range(4,4):le_int())
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(SET_UNSOL_CELL_INFO_LIST_RATE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
