@@ -484,6 +484,65 @@ function request_enter_sim_pin.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(QUERY_FACILITY_LOCK) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_query_facility_lock = Proto("rild.request.query_facility_lock", "REQUEST_QUERY_FACILITY_LOCK");
+
+request_query_facility_lock.fields.facility =
+    ProtoField.string('rild.request.query_facility_lock.facility', 'Facility', base.STRING)
+
+request_query_facility_lock.fields.password =
+    ProtoField.string('rild.request.query_facility_lock.password', 'Password', base.STRING)
+
+
+--  Service class according to ETSI TS 127 007 V13.3.0, 7.4 Facility lock +CLCK
+SERVICECLASS_VOICE = 1
+SERVICECLASS_DATA = 2
+SERVICECLASS_FAX = 4
+SERVICECLASS_SMS = 8
+SERVICECLASS_DATA_CIRCUIT_SYNC = 16
+SERVICECLASS_DATA_CIRCUIT_ASYNC = 32
+SERVICECLASS_DEDICATED_PACKET_ACCESS = 64
+SERVICECLASS_DEDICATED_PAD_ACCESS = 128
+
+SERVICECLASS = {
+    [SERVICECLASS_VOICE] = "VOICE",
+    [SERVICECLASS_DATA] = "DATA",
+    [SERVICECLASS_FAX] = "FAX",
+    [SERVICECLASS_SMS] = "SMS",
+    [SERVICECLASS_DATA_CIRCUIT_SYNC] = "DATA_CIRCUIT_SYNC",
+    [SERVICECLASS_DATA_CIRCUIT_ASYNC] = "DATA_CIRCUIT_ASYNC",
+    [SERVICECLASS_DEDICATED_PACKET_ACCESS] = "DEDICATED_PACKET_ACCESS",
+    [SERVICECLASS_DEDICATED_PAD_ACCESS] = "DEDICATED_PAD_ACCESS"
+}
+
+request_query_facility_lock.fields.class =
+    ProtoField.string('rild.request.query_facility_lock.class', 'Service class', base.DEC)
+
+request_query_facility_lock.fields.aid =
+    ProtoField.string('rild.request.query_facility_lock.aid', 'AID', base.STRING)
+
+function request_query_facility_lock.dissector(buffer, info, tree)
+    results = parse_stringlist(buffer)
+    if #results == 4
+    then
+        start = 4
+        tree:add(request_query_facility_lock.fields.facility, buffer(start, results[1].len), nil_repr(results[1].data))
+        start = start + results[1].len
+        tree:add(request_query_facility_lock.fields.password, buffer(start, results[2].len), nil_repr(results[2].data))
+        start = start + results[2].len
+        tree:add(request_query_facility_lock.fields.class, buffer(start, results[3].len),
+            table_repr(parse_bitfield(results[3].data, SERVICECLASS)))
+        start = start + results[3].len
+        tree:add(request_query_facility_lock.fields.aid, buffer(start, results[4].len), nil_repr(results[4].data))
+        start = start + results[4].len
+    else
+        tree:add_tvb_expert_info(request_query_facility_lock.fields.pin, buffer, "Expected string list with 4 elements (got " .. #results .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(SCREEN_STATE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
@@ -1016,6 +1075,32 @@ function reply_query_network_selection_mode.dissector(buffer, info, tree)
     if #values == 1
     then
         tree:add_le(reply_query_network_selection_mode.fields.selection, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(QUERY_FACILITY_LOCK) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_query_facility_lock = Proto("rild.reply.query_facility_lock", "REPLY_QUERY_FACILITY_LOCK");
+
+reply_query_facility_lock.fields.barringactive =
+    ProtoField.string('rild.reply.reply_query_facility_lock.barringactive', 'Barring', base.STRING)
+
+function reply_query_facility_lock.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 1
+    then
+        value = buffer:range(4,4):le_int()
+        if value == 0
+        then
+            result = "disable for all"
+        else
+            result = "active for " .. table_repr(parse_bitfield(value, SERVICECLASS))
+        end
+        tree:add_le(reply_query_facility_lock.fields.barringactive, buffer:range(4,4), result)
     else
         tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
     end
