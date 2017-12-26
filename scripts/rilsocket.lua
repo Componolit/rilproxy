@@ -405,6 +405,34 @@ function unsol_restricted_state_changed.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(STK_EVENT_NOTIFY) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local unsol_stk_event_notify = Proto("rild.unsol.stk_event_notify", "STK_EVENT_NOTIFY");
+
+unsol_stk_event_notify.fields.data =
+    ProtoField.string('rild.unsol.stk_event_notify.data', 'data', base.String)
+
+function unsol_stk_event_notify.dissector(buffer, info, tree)
+    local data_len, data = parse_string(buffer(0,-1))
+    tree:add(unsol_stk_event_notify.fields.data, buffer(0, data_len), nil_repr(data))
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(STK_SEND_TERMINAL_RESPONSE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_stk_send_terminal_response = Proto("rild.request.stk_send_terminal_response", "STK_SEND_TERMINAL_RESPONSE");
+
+request_stk_send_terminal_response.fields.data =
+    ProtoField.string('rild.request.stk_send_terminal_response.data', 'data', base.String)
+
+function request_stk_send_terminal_response.dissector(buffer, info, tree)
+    local data_len, data = parse_string(buffer(0,-1))
+    tree:add(request_stk_send_terminal_response.fields.data, buffer(0, data_len), nil_repr(data))
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(RADIO_POWER) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
