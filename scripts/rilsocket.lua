@@ -1101,13 +1101,13 @@ DirectionLabel = {
     [DIR_FROM_BP] = "[BP->AP]"
 }
 
-rilproxy.fields.length  = ProtoField.uint32('rilproxy.length', 'Length', base.DEC)
-rilproxy.fields.request = ProtoField.uint32('rilproxy.request', 'Request', base.DEC, REQUEST)
-rilproxy.fields.mtype   = ProtoField.uint32('rilproxy.mtype', 'Type', base.DEC, MTYPE)
-rilproxy.fields.token   = ProtoField.uint32('rilproxy.token', 'Token', base.HEX)
-rilproxy.fields.reply   = ProtoField.framenum('rilproxy.reply', 'In reply to frame', base.NONE, frametype.RESPONSE)
-rilproxy.fields.result  = ProtoField.uint32('rilproxy.result', 'Result', base.DEC, ERRNO)
-rilproxy.fields.event   = ProtoField.uint32('rilproxy.event', 'Event', base.DEC, UNSOL)
+rilproxy.fields.length  = ProtoField.uint32('rild.length', 'Length', base.DEC)
+rilproxy.fields.request = ProtoField.uint32('rild.request', 'Request', base.DEC, REQUEST)
+rilproxy.fields.mtype   = ProtoField.uint32('rild.mtype', 'Type', base.DEC, MTYPE)
+rilproxy.fields.token   = ProtoField.uint32('rild.token', 'Token', base.HEX)
+rilproxy.fields.reply   = ProtoField.framenum('rild.reply', 'In reply to frame', base.NONE, frametype.RESPONSE)
+rilproxy.fields.result  = ProtoField.uint32('rild.result', 'Result', base.DEC, ERRNO)
+rilproxy.fields.event   = ProtoField.uint32('rild.event', 'Event', base.DEC, UNSOL)
 
 all_dissectors = {}
 
