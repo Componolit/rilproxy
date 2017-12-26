@@ -533,6 +533,27 @@ function request_cdma_set_subscription_source.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(SET_PREFERRED_NETWORK_TYPE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_set_preferred_network_type =
+    Proto("rild.request.set_preferred_network_type", "REQUEST_SET_PREFERRED_NETWORK_TYPE");
+
+request_set_preferred_network_type.fields.preferrednetworktype =
+    ProtoField.uint32('rild.request.set_preferred_network_type.fields.preferrednetworktype', 'Preferred network type',
+        base.DEC, PREFERREDNETWORKTYPE)
+
+function request_set_preferred_network_type.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add(request_set_preferred_network_type.fields.preferrednetworktype, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(SET_UNSOL_CELL_INFO_LIST_RATE) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
