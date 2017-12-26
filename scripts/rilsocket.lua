@@ -231,6 +231,24 @@ function unsol_ril_connected.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(RIL_UNSOL_CDMA_PRL_CHANGED) dissector
+-----------------------------------------------------------------------------------------------------------------------
+local unsol_cdma_prl_changed = Proto("rild.unsol.cdma_prl_changed", "RIL_UNSOL_CDMA_PRL_CHANGED");
+
+unsol_cdma_prl_changed.fields.prlversion =
+    ProtoField.uint32('rild.unsol_cdma_prl_changed.prlversion', 'PRL version', base.DEC)
+
+function unsol_cdma_prl_changed.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add_le(unsol_cdma_prl_changed.fields.prlversion, buffer:range(4,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- UNSOL(OEM_HOOK_RAW) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
