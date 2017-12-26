@@ -374,6 +374,25 @@ function unsol_signal_strength.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(RESTRICTED_STATE_CHANGED) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local unsol_restricted_state_changed = Proto("rild.unsol.restricted_state_changed", "RESTRICTED_STATE_CHANGED");
+
+unsol_restricted_state_changed.fields.state =
+    ProtoField.string('rild.unsol.restricted_state_changed.state', 'State', base.String)
+
+function unsol_restricted_state_changed.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 1
+    then
+        tree:add(unsol_restricted_state_changed.fields.state, buffer:range(4,4), table_repr(parse_bitfield(values[1], RESTRICTED_STATE)))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,-1), "Expected integer list with 1 element (got " .. #values .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(RADIO_POWER) dissector
 -----------------------------------------------------------------------------------------------------------------------
 

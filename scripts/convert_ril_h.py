@@ -51,11 +51,12 @@ trim_prefixes = {
     'KEEPALIVESTATUSCODE':          'KEEPALIVE',
     'REQUEST':                      'REQUEST',
     'RESPONSE':                     'RESPONSE',
-    'UNSOL':                        'UNSOL'
+    'UNSOL':                        'UNSOL',
+    'RESTRICTED_STATE':             'RESTRICTED_STATE'
 }
 
 # Defines to generate tables for
-generate_defines = ['REQUEST', 'RESPONSE', 'UNSOL']
+generate_defines = ['REQUEST', 'RESPONSE', 'UNSOL', 'RESTRICTED_STATE']
 
 # Ignore enums in this list
 ignore_enums = ['SOCKET_ID']
@@ -213,7 +214,7 @@ def output_lua(result, filename):
             for define in defines:
                 name = trim_prefix(define, 'RIL_')
                 if name.startswith(tablename + '_'):
-                    table[int(defines[define])] = name
+                    table[int(defines[define], 0)] = name
             output_lua_table(f, tablename, table)
 
 def main():
