@@ -451,6 +451,26 @@ function request_stk_send_terminal_response.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(GET_IMSI) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_get_imsi = Proto("rild.request.get_imsi", "GET_IMSI");
+
+request_get_imsi.fields.aid =
+    ProtoField.string('rild.request.get_imsi.aid', 'AID', base.String)
+
+function request_get_imsi.dissector(buffer, info, tree)
+    results = parse_stringlist(buffer)
+    if #results == 1
+    then
+        start = 4
+        tree:add(request_get_imsi.fields.aid, buffer(start, results[1].len), nil_repr(results[1].data))
+    else
+        tree:add_tvb_expert_info(request_enter_sim_pin.fields.pin, buffer, "Expected string list with 1 element (got " .. #results .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- REQUEST(RADIO_POWER) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
