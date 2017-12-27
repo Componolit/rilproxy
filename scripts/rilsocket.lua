@@ -497,7 +497,7 @@ end
 -- REQUEST(GET_IMSI) dissector
 -----------------------------------------------------------------------------------------------------------------------
 
-local request_get_imsi = Proto("rild.request.get_imsi", "GET_IMSI");
+local request_get_imsi = Proto("rild.request.get_imsi", "REQUEST_GET_IMSI");
 
 request_get_imsi.fields.aid =
     ProtoField.string('rild.request.get_imsi.aid', 'AID', base.String)
@@ -1276,6 +1276,20 @@ reply_get_imeisv.fields.imeisv =
 function reply_get_imeisv.dissector(buffer, info, tree)
     local len, string = parse_string(buffer)
     tree:add(reply_get_imeisv.fields.imeisv, buffer:range(0, len), '"' .. nil_repr(string) .. '"')
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REPLY(GET_IMSI) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local reply_get_imsi = Proto("rild.reply.get_imsi", "REPLY_GET_IMSI");
+
+reply_get_imsi.fields.imei =
+    ProtoField.string('rild.reply.reply_get_imsi.imei', 'IMSI', base.STRING)
+
+function reply_get_imsi.dissector(buffer, info, tree)
+    local len, string = parse_string(buffer)
+    tree:add(reply_get_imsi.fields.imei, buffer:range(0, len), '"' .. nil_repr(string) .. '"')
 end
 
 -----------------------------------------------------------------------------------------------------------------------
