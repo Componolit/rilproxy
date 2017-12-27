@@ -244,6 +244,19 @@ function rild_content.dissector(buffer, info, tree)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- UNSOL(RESPONSE_NEW_SMS) dissector
+-----------------------------------------------------------------------------------------------------------------------
+local unsol_response_new_sms = Proto("rild.unsol.response_new_sms", "RESPONSE_NEW_SMS");
+
+unsol_response_new_sms.fields.data =
+    ProtoField.string('rild.unsol_response_new_sms.data', 'Data', base.STRING)
+
+function unsol_response_new_sms.dissector(buffer, info, tree)
+    local data_len, data = parse_string(buffer)
+    tree:add(unsol_response_new_sms.fields.data, buffer(0,data_len), nil_repr(data))
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- UNSOL(RIL_CONNECTED) dissector
 -----------------------------------------------------------------------------------------------------------------------
 local unsol_ril_connected = Proto("rild.unsol.ril_connected", "RIL_CONNECTED");
@@ -497,6 +510,47 @@ function request_get_imsi.dissector(buffer, info, tree)
         tree:add(request_get_imsi.fields.aid, buffer(start, results[1].len), parse_aid(results[1].data))
     else
         tree:add_tvb_expert_info(request_enter_sim_pin.fields.pin, buffer, "Expected string list with 1 element (got " .. #results .. ")")
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- REQUEST(SMS_ACKNOWLEDGE) dissector
+-----------------------------------------------------------------------------------------------------------------------
+
+local request_sms_acknowledge = Proto("rild.request.sms_acknowledge", "SMS_ACKNOWLEDGE");
+
+RECEIPT_FAILED = 0
+RECEIPT_SUCCESSFUL = 1
+
+RECEIPT = {
+    [RECEIPT_FAILED] = "FAILED",
+    [RECEIPT_SUCCESSFUL] = "SUCCESSFUL"
+}
+
+FAILURECAUSE_NO_ERROR = 0
+FAILURECAUSE_MEMORY_CAPACITY_EXCEEDED = 0xde
+FAILURECAUSE_UNSPECIFIED_ERROR = 0xff
+
+FAILURECAUSE = {
+    [FAILURECAUSE_NO_ERROR] = "NO_ERROR",
+    [FAILURECAUSE_MEMORY_CAPACITY_EXCEEDED] = "MEMORY_CAPACITY_EXCEEDED",
+    [FAILURECAUSE_UNSPECIFIED_ERROR] = "UNSPECIFIED_ERROR"
+}
+
+request_sms_acknowledge.fields.receipt =
+    ProtoField.uint32('rild.request.sms_acknowledge.receipt', 'Receipt', base.DEC, RECEIPT)
+
+request_sms_acknowledge.fields.failurecause =
+    ProtoField.uint32('rild.request.sms_acknowledge.failurecause', 'Failure cause', base.DEC, FAILURECAUSE)
+
+function request_sms_acknowledge.dissector(buffer, info, tree)
+    local values = parse_int_list(buffer)
+    if #values == 2
+    then
+        tree:add_le(request_sms_acknowledge.fields.receipt, buffer:range(4,4))
+        tree:add_le(request_sms_acknowledge.fields.failurecause, buffer:range(8,4))
+    else
+        tree:add_tvb_expert_info(rild_error, buffer:range(0,4), "Expected integer list with 2 elements (got " .. #values .. ")")
     end
 end
 
