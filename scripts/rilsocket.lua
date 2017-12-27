@@ -128,6 +128,36 @@ function parse_bitfield(value, table)
     return result
 end
 
+--  Check for known AID values
+function parse_aid(value)
+
+    if value == nil
+    then
+        return '<NULL>'
+    end
+
+    value = value:upper()
+    result = nil
+
+    --  Values according to
+    --      https://source.android.com/devices/tech/config/uicc
+    --      https://www.eftlab.co.uk/index.php/site-map/knowledge-base/211-emv-aid-rid-pix
+    if value == 'A00000015141434C00'
+    then
+        result = 'Access Rule Applet'
+    elseif value == 'A000000063504B43532D3135'
+    then
+        result = 'PKCS15'
+    elseif value == 'A0000000871002FF49FF0589'
+    then
+        result = '3GPP USIM'
+    else
+        result = 'INVALID'
+    end
+
+    return result .. ' ("' .. value .. '")'
+end
+
 --  Print a table
 function table_repr(table)
 
@@ -464,7 +494,7 @@ function request_get_imsi.dissector(buffer, info, tree)
     if #results == 1
     then
         start = 4
-        tree:add(request_get_imsi.fields.aid, buffer(start, results[1].len), nil_repr(results[1].data))
+        tree:add(request_get_imsi.fields.aid, buffer(start, results[1].len), parse_aid(results[1].data))
     else
         tree:add_tvb_expert_info(request_enter_sim_pin.fields.pin, buffer, "Expected string list with 1 element (got " .. #results .. ")")
     end
@@ -514,7 +544,7 @@ function request_enter_sim_pin.dissector(buffer, info, tree)
         start = 4
         tree:add(request_enter_sim_pin.fields.pin, buffer(start, results[1].len), nil_repr(results[1].data))
         start = start + results[1].len
-        tree:add(request_enter_sim_pin.fields.aid, buffer(start, results[2].len), nil_repr(results[2].data))
+        tree:add(request_enter_sim_pin.fields.aid, buffer(start, results[2].len), parse_aid(results[2].data))
         start = start + results[1].len
     else
         tree:add_tvb_expert_info(request_enter_sim_pin.fields.pin, buffer, "Expected string list with 2 element (got " .. #results .. ")")
@@ -573,7 +603,7 @@ function request_query_facility_lock.dissector(buffer, info, tree)
         tree:add(request_query_facility_lock.fields.class, buffer(start, results[3].len),
             table_repr(parse_bitfield(results[3].data, SERVICECLASS)))
         start = start + results[3].len
-        tree:add(request_query_facility_lock.fields.aid, buffer(start, results[4].len), nil_repr(results[4].data))
+        tree:add(request_query_facility_lock.fields.aid, buffer(start, results[4].len), parse_aid(results[4].data))
         start = start + results[4].len
     else
         tree:add_tvb_expert_info(request_query_facility_lock.fields.pin, buffer, "Expected string list with 4 elements (got " .. #results .. ")")
@@ -617,23 +647,8 @@ request_sim_open_channel.fields.aid =
     ProtoField.string('rild.request.sim_open_channel.aid', 'Value', base.STRING)
 
 function request_sim_open_channel.dissector(buffer, info, tree)
-    local text
     local len, value = parse_string(buffer)
-    value = nil_repr(value)
-
-    --  Values according to https://source.android.com/devices/tech/config/uicc
-    if value == "A00000015141434C00"
-    then
-        text = 'Access Rule Applet ("'
-    elseif value == "A000000063504B43532D3135"
-    then
-        text = 'PKCS15 ("'
-    else
-        text = 'INVALID ("'
-    end
-    text = text .. value .. '")'
-
-    subtree:add(request_sim_open_channel.fields.aid, buffer(0, len), text)
+    subtree:add(request_sim_open_channel.fields.aid, buffer(0, len), parse_aid(value))
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -843,7 +858,7 @@ function request_sim_io.dissector(buffer, info, tree)
     if pin2_end + 4 <= buffer:len()
     then
         local aid_len, aid = parse_string(buffer(pin2_end, -1))
-        tree:add(request_sim_io.fields.aid, buffer(pin2_end, aid_len), '"' .. nil_repr(aid) .. '"')
+        tree:add(request_sim_io.fields.aid, buffer(pin2_end, aid_len), parse_aid(aid))
     end
 end
 
@@ -1332,7 +1347,7 @@ function app_status.dissector(buffer, info, tree)
     tree:add_le(app_status.fields.appstate, buffer:range(4,4))
     tree:add_le(app_status.fields.persosubstate, buffer:range(8,4))
     aidlen, aid = parse_string(buffer(12,-1))
-    tree:add(app_status.fields.aid, buffer:range(12,aidlen), nil_repr(aid))
+    tree:add(app_status.fields.aid, buffer:range(12,aidlen), parse_aid(aid))
 
     applabelstart = 12 + aidlen
     applabellen, applabel = parse_string(buffer(applabelstart,-1))
