@@ -1668,14 +1668,14 @@ function rilproxy.dissector(buffer, info, tree)
     -- Message must be at least 4 bytes
     if buffer_len < 4 then
         log("[" .. info.number .. "] Dropping short buffer of len " .. buffer_len)
-        return
+        return 0
     end
 
     local header_len = buffer:range(0,4):uint()
 
     if header_len < 4 then
         log("[" .. info.number .. "] Dropping short header len of " .. header_len)
-        return
+        return 0
     end
 
     --  FIXME: Upper limit?
@@ -1684,7 +1684,7 @@ function rilproxy.dissector(buffer, info, tree)
         log("[" .. info.number .. "] Skipping long buffer of length " .. header_len)
         bytesMissing = 0
         cache = ByteArray.new()
-        return
+        return 0
     end
 
     if buffer_len <= (header_len - 4)
@@ -1719,7 +1719,7 @@ function rilproxy.dissector(buffer, info, tree)
         -- Request
         message = "REQUEST(" .. maybe_unknown(REQUEST[rid]) .. ")"
         info.cols.info:append(message)
-        subtree = add_default_fields(tree, message, buffer, header_len + 4)
+        subtree = add_default_fields(tree, message, buffer(0,-1), header_len + 4)
         subtree:add_le(rilproxy.fields.request, buffer(4,4))
         if (header_len > 4)
         then
