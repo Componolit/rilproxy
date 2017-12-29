@@ -8,7 +8,7 @@ ISO_FILES=\
 	scripts/rilproxy_networking.sh \
 
 all::
-	@echo Chose "device", "vm32", "vm64" or "build" target.
+	@echo Chose \"device\", \"vm32\", \"vm64\" or \"build\" target.
 	@false
 
 build::
