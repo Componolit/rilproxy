@@ -168,7 +168,7 @@ socket_copy (int source_fd, int dest_fd, const char *label)
     ssize_t i;
     ssize_t bytes_written = -1;
     ssize_t bytes_read = -1;
-    char buffer[1500];
+    char buffer[RILPROXY_BUFFER_SIZE];
     char hexdump_buffer[3*sizeof(buffer)+1];
 
     bytes_read = read (source_fd, &buffer, sizeof (buffer));

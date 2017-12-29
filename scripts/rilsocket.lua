@@ -1679,7 +1679,7 @@ function rilproxy.dissector(buffer, info, tree)
     end
 
     --  FIXME: Upper limit?
-    if header_len > 1492
+    if header_len > 3000
     then
         log("[" .. info.number .. "] Skipping long buffer of length " .. header_len)
         bytesMissing = 0

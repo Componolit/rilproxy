@@ -1,7 +1,11 @@
 #ifndef __RILPROXY_H__
 #define __RILPROXY_H__
 
-enum { RILPROXY_PORT = 18912 };
+enum
+{
+    RILPROXY_PORT = 18912,
+    RILPROXY_BUFFER_SIZE = 3000
+};
 
 int udp_socket (const char *host, unsigned short port);
 int unix_client_socket (const char *socket_path);
