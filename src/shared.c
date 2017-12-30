@@ -17,8 +17,6 @@
 
 #include "rilproxy.h"
 
-#define MAX(a,b) (((a)>(b))?(a):(b))
-
 int
 udp_socket (const char *host, unsigned short port)
 {
@@ -219,7 +217,7 @@ send_control_message (int fd, uint32_t message_type)
 }
 
 int
-socket_copy (int source_fd, int dest_fd, const char *label)
+socket_copy (int source_fd, int dest_fd, const char *local, const char *remote)
 {
     ssize_t i;
     ssize_t bytes_written = -1;
@@ -253,7 +251,7 @@ socket_copy (int source_fd, int dest_fd, const char *label)
         return 0;
     }
 
-    warnx ("%s: read %zd, wrote %zd bytes", label, bytes_read, bytes_written);
+    warnx ("[%s -> %s]: read %zd, wrote %zd bytes", local, remote, bytes_read, bytes_written);
 
     // Prepare hexdump
     bzero (hexdump_buffer, sizeof (hexdump_buffer));
@@ -261,7 +259,7 @@ socket_copy (int source_fd, int dest_fd, const char *label)
     {
         sprintf (hexdump_buffer + 3*i, "%02x ", 0xff & buffer[i]);
     }
-    warnx ("%s: %s", label, hexdump_buffer);
+    warnx ("[%s -> %s]: %s", local, remote, hexdump_buffer);
 
     return 0;
 }
@@ -287,12 +285,12 @@ proxy (int local_fd, int remote_fd)
 
         if (FD_ISSET (local_fd, &fds))
         {
-            socket_copy (local_fd, remote_fd, "local -> remote");
+            socket_copy (local_fd, remote_fd, "local", "remote");
         }
 
         if (FD_ISSET (remote_fd, &fds))
         {
-            socket_copy (remote_fd, local_fd, "remote -> local");
+            socket_copy (remote_fd, local_fd, "remote", "local");
         }
     }
 }

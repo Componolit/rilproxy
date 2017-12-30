@@ -7,6 +7,8 @@ enum
     RILPROXY_BUFFER_SIZE = 3000
 };
 
+int socket_copy (int source_fd, int dest_fd, const char *local, const char *remote);
+
 int udp_socket (const char *host, unsigned short port);
 int unix_client_socket (const char *socket_path);
 int unix_server_socket (const char *socket_path, const char *user);
@@ -32,5 +34,7 @@ enum
     SOCKET_COPY_WRITE_ERROR,
     SOCKET_COPY_WRITE_CLOSED
 };
+
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 #endif // __RILPROXY_H__
