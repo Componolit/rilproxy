@@ -2,13 +2,19 @@ VERBOSE ?= @
 ABI ?= armeabi-v7a
 # ABI = arm64-v8a
 
+CFLAGS = -Werror -Wall -Wextra -Isrc
+LDFLAGS = -fPIC
+vpath %.c src
+
+DUMMY := $(shell mkdir -p obj)
+
 ISO_FILES=\
 	scripts/install.sh \
 	scripts/rilproxy_server.rc \
 	scripts/rilproxy_networking.sh \
 
 all::
-	@echo Chose \"device\", \"vm32\", \"vm64\" or \"build\" target.
+	@echo Chose \"device\", \"vm32\", \"vm64\", \"swbridge\" or \"build\" target.
 	@false
 
 build::
@@ -30,6 +36,13 @@ device:: build
 	$(VERBOSE)adb push scripts/rilproxy_client.rc /system/etc/init/
 	$(VERBOSE)adb shell chmod 644 /system/etc/init/rilproxy_client.rc
 	$(VERBOSE)adb reboot
+
+swbridge: obj/swbridge.o obj/shared.o
+	$(CC) $(LDFLAGS) -o $@ $^
+	sudo setcap cap_net_raw+ep $@
+
+obj/%.o: src/%.c
+	$(CC) $(CFLAGS) -o $@ -c $^
 
 clean:
 	rm -rf obj libs deploy.iso
