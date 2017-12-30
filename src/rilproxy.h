@@ -10,6 +10,7 @@ enum
 int udp_socket (const char *host, unsigned short port);
 int unix_client_socket (const char *socket_path);
 int unix_server_socket (const char *socket_path, const char *user);
+int raw_ethernet_socket(const char *interface_name);
 int get_uid (const char *username);
 int get_gid (const char *username);
 int send_control_message (int fd, uint32_t message_type);

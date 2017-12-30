@@ -12,6 +12,8 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <net/if.h>
+#include <linux/if_packet.h>
+#include <netinet/ether.h>
 
 #include "rilproxy.h"
 
@@ -112,6 +114,60 @@ unix_server_socket (const char *socket_path, const char *user)
     if (rv < 0) err (7, "unix_server_socket.unlink for %s", socket_path);
 
     return (msgfd);
+}
+
+int
+raw_ethernet_socket(const char *interface_name)
+{
+    int fd = -1;
+    int rv = -1;
+    int sockopt;
+    struct sockaddr_ll bindaddr;
+    struct ifreq if_idx;
+
+    // Create socket (note: need root or CAP_NET_RAW)
+    fd = socket (AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    if (fd < 0)
+    {
+        return -1;
+    }
+
+    // Make socket reusable
+    sockopt = 1;
+    rv = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof (sockopt));
+    if (rv < 0)
+    {
+        return -1;
+    }
+
+    // Get interface index
+    bzero (&if_idx, sizeof (if_idx));
+    strncpy (if_idx.ifr_name, interface_name, IFNAMSIZ - 1);
+    rv = ioctl (fd, SIOCGIFINDEX, &if_idx);
+    if (rv < 0)
+    {
+        return -1;
+    }
+
+    // Bind socket to interface
+    rv = setsockopt (fd, SOL_SOCKET, SO_BINDTODEVICE, (void *)&if_idx, sizeof(if_idx));
+    if (rv < 0)
+    {
+        return -1;
+    }
+
+    // Bind to interfaces for sending
+    bzero (&bindaddr, sizeof(bindaddr));
+    bindaddr.sll_family   = AF_PACKET;
+    bindaddr.sll_protocol = htons(ETH_P_ALL);
+    bindaddr.sll_ifindex  = if_idx.ifr_ifindex;
+
+    rv = bind (fd, (struct sockaddr *)&bindaddr, sizeof (bindaddr));
+    if (rv < 0)
+    {
+        return -1;
+    }
+    return fd;
 }
 
 struct passwd *
