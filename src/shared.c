@@ -17,6 +17,10 @@
 
 #include "rilproxy.h"
 
+#ifndef ETH_P_ALL
+#define ETH_P_ALL 0x0003
+#endif // !ETH_P_ALL
+
 int
 udp_socket (const char *host, unsigned short port)
 {
