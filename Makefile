@@ -37,6 +37,15 @@ device:: build
 	$(VERBOSE)adb shell chmod 644 /system/etc/init/rilproxy_client.rc
 	$(VERBOSE)adb reboot
 
+run:: build
+	$(VERBOSE)adb shell su -c setprop persist.sys.usb.config rndis,adb && sleep 2
+	$(VERBOSE)adb shell su -c mount -o remount,rw /system
+	$(VERBOSE)adb push obj/local/$(ABI)/rilproxy_client /data/local/tmp/
+	$(VERBOSE)adb push scripts/rilproxy_client.sh /data/local/tmp/
+	$(VERBOSE)adb shell su -c sh /data/local/tmp/rilproxy_client.sh rndis0
+	$(VERBOSE)adb shell su -c stop zygote
+	$(VERBOSE)adb shell su -c /system/bin/rilproxy_client /dev/socket/rild 192.168.37.254 18912
+
 swbridge: obj/swbridge.o obj/shared.o
 	$(CC) $(LDFLAGS) -o $@ $^
 	sudo setcap cap_net_raw+ep $@
