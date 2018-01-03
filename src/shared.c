@@ -232,26 +232,26 @@ socket_copy (int source_fd, int dest_fd, const char *local, const char *remote)
     bytes_read = read (source_fd, &buffer, sizeof (buffer));
     if (bytes_read < 0)
     {
-        warn ("socket_copy: error reading source socket");
+        warn ("socket_copy: [%s -> %s] error reading source socket", local, remote);
         return -SOCKET_COPY_READ_ERROR;
     }
 
     if (bytes_read == 0)
     {
-        warn ("socket_copy: reading socket closed");
+        warn ("socket_copy: [%s -> %s] reading socket closed", local, remote);
         return -SOCKET_COPY_READ_CLOSED;
     }
 
     bytes_written = write (dest_fd, &buffer, bytes_read);
     if (bytes_written < 0)
     {
-        warn ("socket_copy: error writing destination socket");
+        warn ("socket_copy: [%s -> %s] error writing destination socket", local, remote);
         return -SOCKET_COPY_WRITE_ERROR;
     }
 
     if (bytes_written < bytes_read)
     {
-        warn ("socket_copy: read %zd bytes, wrote %zd bytes", bytes_read, bytes_written);
+        warn ("socket_copy: [%s -> %s] read %zd bytes, wrote %zd bytes", local, remote, bytes_read, bytes_written);
         return 0;
     }
 
