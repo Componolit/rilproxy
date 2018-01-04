@@ -1806,10 +1806,7 @@ function rilproxy.dissector(buffer, info, tree)
             local request = requests[token]
             local request_delta = request_num - request.request_num
 
-            if pending_requests[token] ~= nil
-            then
-                table.remove (pending_requests, token)
-            end
+            pending_requests[token] = nil
             update_min_max (statistics, "Packets until reply", request_delta)
 
             message = "REPLY(" .. maybe_unknown(REQUEST[request.rid]) ..") [" .. token .. "] = " .. maybe_unknown(ERRNO[result])
