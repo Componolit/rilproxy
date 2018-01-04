@@ -1793,7 +1793,7 @@ function rilproxy.dissector(buffer, info, tree)
         end
         if (header_len > 8)
         then
-            dissector = query_dissector("rild.request." .. REQUEST[rid])
+            dissector = query_dissector("rild.request." .. maybe_unknown(REQUEST[rid]))
             dissector:call(buffer(12, header_len - 12 + 4):tvb(), info, subtree)
         end
     elseif direction() == DIR_FROM_BP
