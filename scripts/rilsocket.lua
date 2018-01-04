@@ -228,6 +228,47 @@ function log(message)
     ril_log = ril_log .. message .. "<br>"
 end
 
+function update_histogram(table, value)
+    if table[value] == nil
+    then
+        table[value] = 1
+    else
+        table[value] = table[value] + 1
+    end
+end
+
+function update_min_max(table, name, value)
+
+    if value == nil
+    then
+        return
+    end
+
+    if table[name] == nil
+    then
+        table[name] = { min = 0xffffffff, max = 0 }
+    end
+
+    if table[name].min > value
+    then
+        table[name].min = value
+    end
+
+    if table[name].max < value
+    then
+        table[name].max = value
+    end
+end
+
+function count_table (table)
+    count = 0
+    for entry in pairs(table)
+    do
+        count = count + 1
+    end
+    return count
+end
+
 -----------------------------------------------------------------------------------------------------------------------
 -- hexdump dissector
 -----------------------------------------------------------------------------------------------------------------------
@@ -1566,12 +1607,7 @@ function query_dissector(name)
     then
         dissector = Dissector.get(name)
     else
-        if missing_dissectors[name]
-        then
-            missing_dissectors[name] = missing_dissectors[name] + 1
-        else
-            missing_dissectors[name] = 1
-        end
+        update_histogram (missing_dissectors, name)
         dissector = Dissector.get("rild.content")
     end
 
@@ -1584,9 +1620,17 @@ function ril_stats_menu()
 
     text = text .. '<h1>Statistics</h1>'
 
-    text = text .. '<h2>Logs</h2>'
+    text = text .. '<h2>Request statistics</h2>'
 
-    text = text .. ril_log
+    text = text .. '<table style="width:100%">'
+    text = text .. '<tr><th>Name</th><th>Min</th><th>Max</th></tr>'
+
+    table.sort(statistics)
+    for name, stat in pairs(statistics)
+    do
+        text = text .. '<tr><td>' .. name .. '</td><td>&nbsp;' .. stat.min .. '</td><td>' .. stat.max .. '</td></tr>'
+    end
+    text = text .. '</table>'
 
     local missing_total = 0
     local missing_unique = 0
@@ -1598,7 +1642,7 @@ function ril_stats_menu()
 
     text = text .. '<h2>Missing dissectors</h2>'
     text = text .. missing_unique .. ' unique dissectors missing from ' .. missing_total .. ' packets.'
-    text = text .. '<table style="width:100%"><tr>'
+    text = text .. '<table style="width:100%">'
     text = text .. '<tr><th>Count</th><th>Dissector</th></tr>'
 
     for name, value in pairs(missing_dissectors)
@@ -1607,6 +1651,10 @@ function ril_stats_menu()
     end
 
     text = text .. '</table>'
+
+    text = text .. '<h2>Logs</h2>'
+
+    text = text .. ril_log
 
     ril_stat_window:set(text)
 end
@@ -1619,7 +1667,11 @@ function rilproxy.init()
     bp_ip = nil
     frames = {}
     requests = {}
+    pending_requests = {}
     missing_dissectors = {}
+    request_num = 0
+    last_token = 0
+    statistics = {}
 
     for key,value in pairs(Dissector.list())
     do
@@ -1637,18 +1689,12 @@ end
 
 function rilproxy.dissector(buffer, info, tree)
 
+    update_min_max (statistics, "Buffer length (raw)", buffer:len())
+
     -- Follow-up to a message where length header indicates
     -- more bytes than available in the message.
     if bytesMissing > 0
     then
-
-        if buffer:len() > bytesMissing
-        then
-            log("[" .. info.number .. "] Follow-up message longer (" .. buffer:len() .. ") than missing bytes (" .. bytesMissing .. "), ignoring")
-            bytesMissing = 0
-            cache = ByteArray.new()
-            return
-        end
 
         cache:append(buffer(0):bytes())
         bytesMissing = bytesMissing - buffer:len()
@@ -1663,6 +1709,11 @@ function rilproxy.dissector(buffer, info, tree)
         cache = nil
     end
 
+    update_min_max (statistics, "Buffer length (reassembled)", buffer_len)
+
+    -- Advance request counter
+    request_num = request_num + 1
+
     local buffer_len = buffer:len()
 
     -- Message must be at least 4 bytes
@@ -1672,6 +1723,8 @@ function rilproxy.dissector(buffer, info, tree)
     end
 
     local header_len = buffer:range(0,4):uint()
+
+    update_min_max (statistics, "Header length (raw)", header_len)
 
     if header_len < 4 then
         log("[" .. info.number .. "] Dropping short header len of " .. header_len)
@@ -1686,6 +1739,8 @@ function rilproxy.dissector(buffer, info, tree)
         cache = ByteArray.new()
         return 0
     end
+
+    update_min_max (statistics, "Header length", header_len)
 
     if buffer_len <= (header_len - 4)
     then
@@ -1724,9 +1779,17 @@ function rilproxy.dissector(buffer, info, tree)
         if (header_len > 4)
         then
             token = buffer(8,4):le_uint()
+            info.cols.info:append(" [" .. token .. "]")
             frames[token] = info.number
-            requests[token] = rid
+            requests[token] = { rid = rid, request_num = request_num }
+            pending_requests[token] = 1
             subtree:add_le(rilproxy.fields.token, buffer(8,4))
+
+            if token - last_token > 0
+            then
+                update_min_max (statistics, "Token delta", token - last_token)
+            end
+            last_token = token
         end
         if (header_len > 8)
         then
@@ -1740,8 +1803,16 @@ function rilproxy.dissector(buffer, info, tree)
         then
             local result = buffer(12,4):le_uint()
             local token = buffer(8,4):le_uint()
-            local rid = requests[token]
-            message = "REPLY(" .. maybe_unknown(REQUEST[rid]) ..") = " .. maybe_unknown(ERRNO[result])
+            local request = requests[token]
+            local request_delta = request_num - request.request_num
+
+            if pending_requests[token] ~= nil
+            then
+                table.remove (pending_requests, token)
+            end
+            update_min_max (statistics, "Packets until reply", request_delta)
+
+            message = "REPLY(" .. maybe_unknown(REQUEST[request.rid]) ..") [" .. token .. "] = " .. maybe_unknown(ERRNO[result])
             info.cols.info:append(message)
             subtree = add_default_fields(tree, message, buffer, header_len + 4)
             subtree:add_le(rilproxy.fields.mtype, buffer(4,4))
@@ -1753,7 +1824,7 @@ function rilproxy.dissector(buffer, info, tree)
             subtree:add_le(rilproxy.fields.result, buffer(12,4))
             if (header_len > 12)
             then
-                dissector = query_dissector("rild.reply." .. maybe_unknown(REQUEST[rid]))
+                dissector = query_dissector("rild.reply." .. maybe_unknown(REQUEST[request.rid]))
                 dissector:call(buffer(16, header_len - 16 + 4):tvb(), info, subtree)
             end
         elseif (mtype == MTYPE_UNSOL)
@@ -1776,6 +1847,7 @@ function rilproxy.dissector(buffer, info, tree)
         info.cols.info:append("INVALID DIRECTION")
     end
 
+    update_min_max (statistics, "In-flight requests", count_table (pending_requests))
 
     -- If data is left in buffer, run dissector on it
     if buffer_len > header_len + 4
