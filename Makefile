@@ -44,7 +44,7 @@ run:: build
 	$(VERBOSE)adb push scripts/rilproxy_client.sh /data/local/tmp/
 	$(VERBOSE)adb shell su -c sh /data/local/tmp/rilproxy_client.sh rndis0
 	$(VERBOSE)adb shell su -c stop zygote
-	$(VERBOSE)adb shell su -c /system/bin/rilproxy_client /dev/socket/rild 192.168.37.254 18912
+	$(VERBOSE)adb shell su -c /data/local/tmp/rilproxy_client /dev/socket/rild 192.168.37.254 18912
 
 swbridge: obj/swbridge.o obj/shared.o
 	$(CC) $(LDFLAGS) -o $@ $^
