@@ -9,7 +9,11 @@ other device. This is required to ensure that the initial unsolicited startup
 message from RILd is received by the phone process.
 
 A rudimentary Wirkeshark dissector for the protocol run on `/dev/socket/rild` is
-available in `scripts/rilsocket.lua`.
+available in `scripts/rilsocket.lua`. To install it run the follwing steps:
+
+ - Get the the Android RIL source by `git clone https://android.googlesource.com/platform/hardware/ril`
+ - Generate `ril_h.lua` with `./scripts/convert_ril_h.py --output ril_h.lua /path/to/ril/source/.../include/telephony/ril.h`
+ - Copy `ril_h.lua` and `rilsocket.lua` to the Wireshark plugins directory (which can be found in Wireshark under Help->About Wireshark->Directories->Personal Plugins)
 
 
 Shortcomings/future work:
