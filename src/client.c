@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 // Linux includes
 #include <linux/if_ether.h>
